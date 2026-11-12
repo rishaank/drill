@@ -1,0 +1,1341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0c0d10; --surface:#15171c; --surface2:#1c1f26; --line:#272a33; --line2:#3a3e4a;
+  --text:#eceef3; --muted:#8b90a0; --accent:#5eead4; --accent-ink:#04201b;
+  --amber:#fbbf24; --red:#fb7185; --green:#4ade80; --r:16px;
+  --mono:'Geist Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{color-scheme:dark}
+body{background:var(--bg);color:var(--text);font:16px/1.5 Geist,system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;
+  background:radial-gradient(700px 420px at 85% -10%,rgba(94,234,212,.09),transparent 70%),radial-gradient(600px 420px at -10% 110%,rgba(251,191,36,.05),transparent 70%)}
+.wrap{max-width:880px;margin:0 auto;padding:28px 20px 96px;position:relative}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+input,textarea,select{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px;outline:none;transition:border-color .15s,box-shadow .15s;width:100%}
+input:focus,textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(94,234,212,.12)}
+select{width:auto;padding:8px 12px;background:var(--surface2);cursor:pointer}
+kbd{font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:5px;background:rgba(0,0,0,.18);margin-left:6px}
+
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:48px}
+.logo{font-weight:700;font-size:19px;letter-spacing:-.02em;display:flex;align-items:center;gap:10px}
+.logo i{width:28px;height:28px;border-radius:8px;background:var(--accent);display:grid;place-items:center;color:var(--accent-ink);font-style:normal;font-size:14px;font-weight:700}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:12px;background:var(--surface2);border:1px solid var(--line);font-weight:500;font-size:14px;transition:background .15s,border-color .15s,transform .1s,filter .15s;white-space:nowrap}
+.btn:hover{border-color:var(--line2);background:#222630}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent;font-weight:600}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ghost{background:none;border-color:transparent;color:var(--muted)}
+.btn.ghost:hover{color:var(--text);background:var(--surface2)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn kbd{margin:0}
+.icon{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--muted);transition:.15s}
+.icon:hover{background:var(--surface2);color:var(--text)}
+.icon svg{width:17px;height:17px}
+
+h1{font-size:clamp(30px,5vw,42px);letter-spacing:-.035em;font-weight:700;line-height:1.1}
+h2{font-size:24px;letter-spacing:-.02em;font-weight:600}
+.sub{color:var(--muted)}
+
+/* sets */
+.sets{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.set{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;cursor:pointer;transition:border-color .2s,transform .2s;display:flex;flex-direction:column;gap:16px;min-height:170px}
+.set:hover{border-color:var(--line2);transform:translateY(-2px)}
+.set h3{font-size:17px;font-weight:600;letter-spacing:-.01em;line-height:1.3}
+.set .meta{font-size:13px;color:var(--muted);margin-top:4px}
+.set .foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between}
+.set .acts{display:flex;gap:2px;margin-right:-8px}
+.pct{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.set.new{border-style:dashed;background:none;align-items:center;justify-content:center;color:var(--muted);gap:8px;font-weight:500}
+.set.new:hover{color:var(--text)}
+.set.new b{font-size:26px;font-weight:400;line-height:1}
+
+.bar{height:6px;border-radius:99px;background:var(--surface2);overflow:hidden;display:flex}
+.bar span{transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.bar .m{background:var(--accent)}
+.bar .f{background:var(--amber)}
+
+/* editor */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:18px}
+label.f{display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--muted);font-weight:500}
+textarea{font-family:var(--mono);font-size:13.5px;line-height:1.6;resize:vertical;min-height:240px}
+textarea[readonly]{opacity:.55}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row.between{justify-content:space-between}
+.row.end{justify-content:flex-end}
+.opts-row{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);align-items:center}
+.opts-row label{display:flex;gap:8px;align-items:center}
+.preview{max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:12px;scroll-behavior:smooth}
+.preview .kind{font-style:normal;font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);border:1px solid rgba(94,234,212,.3);border-radius:99px;padding:2px 8px;align-self:start;white-space:nowrap;animation:pop .4s}
+.preview div{display:grid;grid-template-columns:1fr 2fr auto;gap:16px;padding:10px 14px;font-size:14px;border-bottom:1px solid var(--line);animation:in .3s}
+.preview div:last-child{border:0}
+.preview b{font-weight:600}
+.preview span{color:var(--muted)}
+.count{font-family:var(--mono);font-size:12px;color:var(--accent)}
+
+/* AI generation panel */
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--line2);border-top-color:var(--accent);animation:spin .7s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes blink{50%{opacity:0}}
+.gen{border:1px solid rgba(94,234,212,.3);background:var(--bg);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;animation:in .3s}
+.gen-top{display:flex;align-items:center;gap:10px}
+.gen-top b{flex:1;font-weight:500;font-size:14px}
+.gen.done{border-color:var(--line)}
+.gen.done .spin{animation:none;border-color:var(--accent);background:var(--accent)}
+.gen.err{border-color:rgba(251,113,133,.4)}
+.gen.err .spin{animation:none;border-color:var(--red);background:var(--red)}
+.segs{display:flex;gap:4px}
+.segs span{flex:1;height:6px;border-radius:99px;background:var(--surface2);overflow:hidden;transition:box-shadow .3s}
+.segs span.active{box-shadow:0 0 0 1px rgba(94,234,212,.45)}
+.segs i{display:block;height:100%;width:0;background:var(--accent);transition:width .4s cubic-bezier(.2,.8,.2,1)}
+.gen-stats{display:flex;gap:18px;font-family:var(--mono);font-size:12px;color:var(--muted);flex-wrap:wrap}
+.gen-stats b{color:var(--text);font-weight:500}
+.live{font-family:var(--mono);font-size:12.5px;color:var(--accent);min-height:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.live::after{content:"▍";animation:blink 1s steps(1) infinite}
+.gen.done .live,.gen.err .live{display:none}
+
+/* learn */
+.learn-top{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.learn-top .title{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.progress{margin-bottom:28px}
+.legend{display:flex;gap:18px;font-size:13px;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;background:var(--surface2);border:1px solid var(--line2)}
+.legend .lm i{background:var(--accent);border:0}.legend .lf i{background:var(--amber);border:0}
+.q{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:32px;animation:in .35s cubic-bezier(.2,.8,.2,1);transition:border-color .25s,box-shadow .25s}
+.q.ok{border-color:rgba(74,222,128,.5);box-shadow:0 0 0 4px rgba(74,222,128,.06)}
+.q.mid{border-color:rgba(251,191,36,.5);box-shadow:0 0 0 4px rgba(251,191,36,.06)}
+.q.bad{border-color:rgba(251,113,133,.5);box-shadow:0 0 0 4px rgba(251,113,133,.06)}
+@keyframes in{from{opacity:0;transform:translateY(10px) scale(.99)}}
+@keyframes shake{20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
+@keyframes pop{50%{transform:scale(1.02)}}
+.shake{animation:shake .35s}
+.q-label{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center;margin-bottom:16px;font-weight:500;flex-wrap:wrap}
+.qn{margin-left:auto;font-family:var(--mono);font-size:12px;display:flex;align-items:center;gap:10px}
+.pips{display:flex;gap:3px}
+.pips i{width:14px;height:4px;border-radius:2px;background:var(--line2)}
+.pips i.on{background:var(--accent)}
+.tag{font-family:var(--mono);font-size:10.5px;padding:3px 8px;border-radius:99px;background:var(--surface2);border:1px solid var(--line);text-transform:uppercase;letter-spacing:.05em}
+.tag.w{color:var(--amber);border-color:rgba(251,191,36,.3)}
+.tag.a{color:var(--accent);border-color:rgba(94,234,212,.3)}
+.tag.r{color:var(--red);border-color:rgba(251,113,133,.3)}
+.q-text{font-size:clamp(20px,3.2vw,26px);font-weight:500;letter-spacing:-.015em;line-height:1.35;min-height:60px;white-space:pre-wrap;word-break:break-word}
+.hint-line{font-size:13px;color:var(--muted);margin-top:8px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:28px}
+.opts.one{grid-template-columns:1fr;gap:8px}
+.opt{display:flex;gap:12px;align-items:flex-start;text-align:left;padding:16px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface2);transition:border-color .15s,transform .15s,opacity .2s,background .2s;font-size:15px;line-height:1.4;word-break:break-word}
+.opt:hover:not(:disabled){border-color:var(--line2);transform:translateY(-1px)}
+.opt kbd{margin:1px 0 0;width:22px;height:22px;padding:0;display:grid;place-items:center;background:var(--bg);color:var(--muted);flex:none;transition:.15s}
+.opt:disabled{cursor:default}
+.opt.chk{padding:13px 16px}
+.opt.chk.on{border-color:var(--accent);background:rgba(94,234,212,.06)}
+.opt.chk.on kbd{background:var(--accent);color:var(--accent-ink)}
+.opt.right{border-color:var(--green);background:rgba(74,222,128,.08);animation:pop .3s}
+.opt.right kbd{background:var(--green);color:#052e12}
+.opt.missed{border-color:var(--green);border-style:dashed}
+.opt.wrong{border-color:var(--red);background:rgba(251,113,133,.08);animation:shake .35s}
+.opt.dim{opacity:.4}
+.write{display:flex;gap:10px;margin-top:28px}
+.write input{font-size:17px;padding:14px 16px}
+.dunno{margin-left:-10px}
+.write~.dunno{margin-top:10px}
+.cloze{margin-top:24px;font-size:19px;line-height:2.3;padding:18px 20px;background:var(--bg);border:1px solid var(--line);border-radius:14px}
+.blank{display:inline-block;width:auto;padding:0 8px;margin:0 2px;border-radius:8px;font-size:inherit;line-height:1.6;border:0;border-bottom:2px solid var(--accent);background:var(--surface2);text-align:center;box-shadow:none}
+.blank:focus{box-shadow:0 0 0 3px rgba(94,234,212,.15)}
+.blank.right{border-color:var(--green);color:var(--green)}
+.blank.wrong{border-color:var(--red);color:var(--red);text-decoration:line-through}
+textarea.explain{font-family:inherit;font-size:16px;line-height:1.55;min-height:130px;margin-top:24px}
+.fb:empty,.ai:empty{display:none}
+.fb,.ai{margin-top:22px;animation:in .3s cubic-bezier(.2,.8,.2,1)}
+.msg.ok{color:var(--green);font-weight:600;font-size:17px}
+.msg.ok span{color:var(--muted);font-weight:400;font-size:14px}
+.msg p{color:var(--muted);font-size:14px;font-weight:400;margin-top:6px}
+.verdict{font-weight:600;font-size:17px;margin-bottom:12px}
+.msg.bad .verdict{color:var(--red)}.msg.mid .verdict{color:var(--amber)}
+.lbl{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:500;margin-top:12px}
+.lbl:first-child{margin-top:0}
+.yours{white-space:pre-wrap;max-height:120px;overflow:auto}
+.msg.bad .yours{color:var(--red);text-decoration:line-through;text-decoration-thickness:1px}
+.ans{color:var(--green);font-size:17px;font-weight:600;white-space:pre-wrap}
+.msg .row{margin-top:20px;justify-content:flex-end}
+.hook{margin-top:14px;padding:12px 14px;border-radius:12px;background:rgba(94,234,212,.06);border:1px solid rgba(94,234,212,.2);color:var(--text)!important;font-size:14.5px}
+.hook::before{content:"✨ Memory hook";display:block;font-size:11.5px;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.compare>div{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px}
+.compare p{white-space:pre-wrap;margin-top:6px}
+.self{margin-top:16px;justify-content:flex-end}
+.ai-box{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;transition:border-color .3s}
+.ai-box.ok{border-color:rgba(74,222,128,.4)}.ai-box.mid{border-color:rgba(251,191,36,.4)}.ai-box.bad{border-color:rgba(251,113,133,.4)}
+.ai-head{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.ai-time{margin-left:auto;font-family:var(--mono);font-size:12px}
+.score{display:flex;align-items:center;gap:12px}
+.score .meter{flex:1;height:8px;border-radius:99px;background:var(--surface2);overflow:hidden}
+.score .meter span{display:block;height:100%;width:0;background:var(--accent);transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.ai-box.ok .meter span{background:var(--green)}.ai-box.mid .meter span{background:var(--amber)}.ai-box.bad .meter span{background:var(--red)}
+.score b{font-family:var(--mono);font-size:20px;min-width:44px;text-align:right}
+.ai-row{display:grid;grid-template-columns:64px 1fr;gap:10px;font-size:14.5px}
+.ai-row .lbl{margin:2px 0 0}
+.ai-err{color:var(--amber);font-size:14px}
+.why-ai{margin-top:14px;font-size:14.5px;line-height:1.55;color:var(--text)!important}
+.why-ai::before{content:"✨ Why";display:block;font-size:11.5px;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.why-ai.loading{color:var(--muted)!important}
+.whynot{list-style:none;display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.whynot li{display:grid;grid-template-columns:minmax(120px,1fr) 2fr;gap:12px;font-size:14px;padding:8px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
+.whynot li.picked{border-color:rgba(251,113,133,.4)}
+.whynot span{color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+@media(max-width:600px){.whynot li{grid-template-columns:1fr;gap:2px}}
+.big{font-size:40px;font-weight:700;letter-spacing:-.03em;margin:4px 0 20px}
+.res{list-style:none;display:flex;flex-direction:column;gap:2px;margin-bottom:24px}
+.res li{display:grid;grid-template-columns:22px 1fr 2fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.res li:last-child{border:0}
+.res li span{font-weight:700}.res .ok span{color:var(--green)}.res .mid span{color:var(--amber)}.res .no span{color:var(--red)}
+.res em{font-style:normal;color:var(--muted);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.done-card{text-align:center;padding:56px 32px}
+.done-card .check{width:64px;height:64px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;margin:0 auto 20px;font-size:30px;font-weight:700;animation:pop .5s}
+.done-card .row{justify-content:center;margin-top:28px}
+
+/* dialog */
+dialog{margin:auto;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:20px;padding:28px;width:min(480px,calc(100% - 32px))}
+dialog::backdrop{background:rgba(0,0,0,.55);backdrop-filter:blur(4px)}
+dialog[open]{animation:in .25s cubic-bezier(.2,.8,.2,1)}
+dialog form{display:flex;flex-direction:column;gap:18px}
+.switch{display:flex;justify-content:space-between;align-items:center;gap:16px;font-weight:500}
+.switch small{display:block;color:var(--muted);font-weight:400;font-size:13px}
+.switch input{appearance:none;width:42px;height:24px;border-radius:99px;background:var(--surface2);border:1px solid var(--line2);position:relative;cursor:pointer;flex:none;padding:0}
+.switch input::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--muted);transition:.2s}
+.switch input:checked{background:var(--accent);border-color:var(--accent)}
+.switch input:checked::after{left:20px;background:var(--accent-ink)}
+.hint{font-size:13px;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px;line-height:1.6}
+.hint code{font-family:var(--mono);font-size:12px;color:var(--text)}
+.model{display:flex;flex-direction:column;gap:6px;font-weight:500}
+.model input{accent-color:var(--accent);width:100%;margin:6px 0 0;cursor:pointer}
+.model .ticks{position:relative;height:18px;font-size:12px;font-weight:400;color:var(--muted)}
+/* each label sits over its stop; the thumb travels 8px in from each end */
+.model .ticks span{position:absolute;cursor:pointer;transform:translateX(-50%)}
+.model .ticks span:nth-child(1){left:0;transform:none}
+.model .ticks span:nth-child(2){left:calc(8px + (100% - 16px) / 3)}
+.model .ticks span:nth-child(3){left:calc(8px + (100% - 16px) * 2 / 3)}
+.model .ticks span:nth-child(4){right:0;transform:none}
+.model .ticks span.on{color:var(--accent);font-weight:600}
+.model small{color:var(--muted);font-weight:400;font-size:13px;line-height:1.5;min-height:3em}
+#aiStatus{font-size:13px}
+dialog a{color:var(--accent);text-decoration:none}dialog a:hover{text-decoration:underline}
+.tag.free{color:var(--green);border-color:rgba(74,222,128,.35);background:rgba(74,222,128,.08)}
+.tag.local{color:var(--accent);border-color:rgba(94,234,212,.35);background:rgba(94,234,212,.08)}
+.tag.paid{color:var(--amber);border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.08)}
+.tag.plan{color:var(--text);border-color:var(--line2);background:var(--surface2)}
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:9}
+
+@media(max-width:600px){
+  .opts{grid-template-columns:1fr}
+  .q{padding:22px}
+  .write{flex-direction:column}
+  .compare{grid-template-columns:1fr}
+  .res li{grid-template-columns:22px 1fr}.res em{display:none}
+  header{margin-bottom:32px}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"><i>D</i>Drill</div>
+    <div class="row">
+    <button class="btn primary" id="newSet">+ New set</button>
+    <button class="icon" id="openSettings" title="Settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+    </div>
+  </header>
+
+  <!-- HOME -->
+  <section id="home">
+    <div class="sets" id="sets"></div>
+  </section>
+
+  <!-- EDIT -->
+  <section id="edit" hidden>
+    <div class="row between" style="margin-bottom:20px">
+      <h2 id="editTitle">New set</h2>
+      <button class="btn ghost" data-home>Cancel</button>
+    </div>
+    <div class="panel">
+      <label class="f">Title<input id="setName" placeholder="e.g. AP Bio — Unit 2 Cells"></label>
+      <label class="f">
+        <span class="row between"><span>Cards — one per line, term then definition (or paste raw notes and use AI)</span><span class="count" id="count">0 cards</span></span>
+        <textarea id="raw" spellcheck="false" placeholder="Mitochondria	Powerhouse of the cell; makes ATP&#10;Ribosome - Makes proteins&#10;Pythagorean theorem: a² + b² = c²"></textarea>
+      </label>
+      <div class="row" style="margin-top:-6px">
+        <button class="btn" id="fix" title="Paste anything (a copied web page, table, messy list) and the AI rearranges it into term / definition cards without changing the wording">✨ Fix formatting</button>
+      </div>
+      <div class="opts-row">
+        <label>Between term &amp; definition
+          <select id="sep"><option value="auto">Auto-detect</option><option value="tab">Tab</option><option value="dash"> - (dash)</option><option value="colon">: (colon)</option><option value="comma">, (comma)</option></select>
+        </label>
+        <label>Between cards
+          <select id="cardSep"><option value="nl">New line</option><option value="semi">; (semicolon)</option></select>
+        </label>
+      </div>
+      <div class="row">
+        <label class="btn"><input type="file" id="file" accept=".txt,.csv,.tsv,text/plain" hidden>Upload .txt / .csv</label>
+        <button class="btn" id="gen" title="Uses AI to turn pasted notes into cards">✨ Turn notes into cards</button>
+        <button class="btn" id="opt" title="AI picks the best question types for each card and writes true/false, select-all and multiple-choice material">✨ Optimize for studying</button>      </div>
+      <div class="gen" id="genPanel" hidden>
+        <div class="gen-top"><span class="spin"></span><b id="genStage"></b><button class="btn" id="genStop">Stop</button></div>
+        <div class="segs" id="genSegs"></div>
+        <div class="gen-stats"><span><b id="genCards">0</b> cards</span><span id="genPart"></span><span id="genKinds" style="color:var(--accent)"></span><span id="genSpeed"></span><span id="genTime">0:00</span></div>
+        <div class="live" id="genLive"></div>
+        <button class="btn ghost" id="genUndo" hidden style="align-self:flex-start;margin-left:-10px">↺ Undo — restore my notes</button>
+      </div>
+      <div class="preview" id="preview" hidden></div>
+      <div class="row end">
+        <button class="btn primary" id="save">Save set</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEARN -->
+  <section id="learn" hidden>
+    <div class="learn-top">
+      <button class="icon" data-home aria-label="Back" title="Back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="title" id="learnTitle"></div>
+      <label class="sub" style="font-size:13px;display:flex;gap:8px;align-items:center">Answer with
+        <select id="answerWith"><option value="term">Term</option><option value="def">Definition</option><option value="mix">Both</option></select>
+      </label>
+    </div>
+    <div class="progress">
+      <div class="bar" style="height:8px"><span class="m"></span><span class="f"></span></div>
+      <div class="legend"><span><i></i><b id="cNew">0</b> new</span><span class="lf"><i></i><b id="cFam">0</b> learning</span><span class="lm"><i></i><b id="cMas">0</b> mastered</span></div>
+    </div>
+    <div id="stage"></div>
+  </section>
+</div>
+
+<dialog id="settings">
+  <form method="dialog">
+    <h2 id="setTitle">Settings</h2>
+    <p class="sub" id="welcome" hidden>Drill works fully without AI. Turn AI on to grade written answers by meaning, explain mistakes, write memory hooks and turn notes into sets. You can change this anytime in Settings.</p>
+    <label class="switch"><span>AI features<small>Grades answers by meaning, explains mistakes, writes memory hooks, builds and optimizes sets</small></span><input type="checkbox" id="aiOn"></label>
+    <div id="aiOpts" style="display:flex;flex-direction:column;gap:18px">
+      <label class="f">AI provider<select id="provider" style="width:100%"></select></label>
+      <div class="hint" id="provHint"></div>
+      <label class="f" id="keyRow"><span class="row between"><span>API key</span><a id="keyLink" target="_blank"></a></span><input type="password" id="apiKey" autocomplete="off" spellcheck="false"></label>
+      <label class="f" id="baseRow">Server URL<input id="base" spellcheck="false" placeholder="https://example.com/v1"></label>
+      <div class="model" id="tierRow"><label for="model">AI model</label>
+        <input type="range" id="model" min="0" max="3" step="1" aria-describedby="modelHint">
+        <div class="ticks" id="modelTicks"><span>Auto</span><span>Haiku</span><span>Sonnet</span><span>Opus</span></div>
+        <small id="modelHint"></small></div>
+      <label class="f" id="modelRow">Model<input id="modelId" list="modelList" spellcheck="false" placeholder="Type or pick a model"><datalist id="modelList"></datalist></label>
+      <div class="row"><button class="btn" type="button" id="testAi">Test connection</button><span id="aiStatus" class="sub"></span></div>
+    </div>
+    <div class="row between"><span class="sub" style="font-size:13px">Your sets</span><span class="row"><button class="btn" type="button" id="exportAll">Export all</button><label class="btn">Import<input type="file" id="importFile" accept=".json,application/json" hidden></label></span></div>
+    <div class="row end"><button class="btn primary">Done</button></div>
+  </form>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]] } return a };
+const load = (k, d) => { try { return JSON.parse(localStorage[k]) ?? d } catch { return d } };
+const save = () => { localStorage['drill.sets'] = JSON.stringify(sets); localStorage['drill.cfg'] = JSON.stringify(cfg) };
+const fmtTime = ms => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` };
+const ROUND = 7, GOAL = 3;
+// Settings → AI model. Auto spends Haiku on the frequent study-time calls and Sonnet on the rare set-building calls,
+// where a "false" statement that's secretly true would teach a wrong fact.
+const MODELS = ['auto', 'haiku', 'sonnet', 'opus'];
+const MODEL_NAME = { haiku: 'Claude Haiku 5.5', sonnet: 'Claude Sonnet 5.5', opus: 'Claude Opus 5.5' };
+const MODEL_HINT = {
+  auto: 'Haiku 5.5 grades, explains and writes hooks while you study; Sonnet 5.5 builds and optimizes sets, where accuracy matters most. Best for long sessions.',
+  haiku: 'Haiku 5.5 for everything. Lightest on your plan\'s usage limits; sets it builds may need a closer check.',
+  sonnet: 'Sonnet 5.5 for everything. Sharper grading and explanations, but every study answer uses more of your plan.',
+  opus: 'Opus 5.5 for everything. The most capable and the heaviest on usage; rarely needed for flashcards.',
+};
+const PRAISE = ['Nice!', 'Nailed it.', 'Correct!', 'You got it.', 'Perfect.', 'Locked in.'];
+const ICON = {
+  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  reset: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  del: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>',
+  spark: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>'
+};
+const svg = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+
+// Settings → AI provider. tier: uses the Auto/Haiku/Sonnet/Opus slider; noKey: runs without a key; optKey: key optional;
+// base: OpenAI-compatible server (Drill.swift sends everything that isn't Claude to its /chat/completions); pick: model to choose when the default is missing.
+const PROVIDERS = {
+  claude: { name: 'Claude Code', tag: 'Your Claude plan', cls: 'plan', tier: true, noKey: true, hint: 'Uses the Claude Code app you already have: no key, and it counts toward your Claude plan\'s usage limits. <a href="https://claude.com/claude-code">Install Claude Code</a> and log in once.' },
+  gemini: { name: 'Google Gemini', tag: 'Free Online', cls: 'free', key: 'https://aistudio.google.com/apikey', base: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-flash-latest', hint: 'Free with a Google account: make a key in Google AI Studio. The free tier has daily limits, and Google may use free-tier prompts to improve its products.' },
+  groq: { name: 'Groq', tag: 'Free Online', cls: 'free', key: 'https://console.groq.com/keys', base: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b', hint: 'Free key, very fast open models. Free accounts are rate-limited.' },
+  openrouter: { name: 'OpenRouter', tag: 'Free Online', cls: 'free', key: 'https://openrouter.ai/keys', base: 'https://openrouter.ai/api/v1', pick: /:free$/, hint: 'One free key for hundreds of models. Models ending in ":free" cost nothing but are rate-limited; the rest are paid.' },
+  ollama: { name: 'Ollama', tag: 'Free Local', cls: 'local', noKey: true, base: 'http://localhost:11434/v1', hint: 'Runs AI on this Mac: free, private, works offline. <a href="https://ollama.com/download">Install Ollama</a>, then download a model by running <code>ollama pull gemma3</code> in Terminal. Needs 8 GB+ of memory; bigger models grade better.' },
+  lmstudio: { name: 'LM Studio', tag: 'Free Local', cls: 'local', noKey: true, base: 'http://localhost:1234/v1', hint: 'Runs AI on this Mac with a point-and-click app. <a href="https://lmstudio.ai">Install LM Studio</a>, download a model, then start its local server (Developer tab).' },
+  anthropic: { name: 'Anthropic API', tag: 'Paid · API key', cls: 'paid', tier: true, key: 'https://console.anthropic.com/settings/keys', hint: 'Claude, billed per use to an Anthropic API account.' },
+  openai: { name: 'OpenAI', tag: 'Paid · API key', cls: 'paid', key: 'https://platform.openai.com/api-keys', base: 'https://api.openai.com/v1', model: 'gpt-5-mini', hint: 'OpenAI\'s models, billed per use to an OpenAI API account (separate from a ChatGPT subscription).' },
+  custom: { name: 'Other (OpenAI-compatible)', tag: 'Any provider', cls: 'plan', optKey: true, base: '', hint: 'Any service with an OpenAI-compatible API (Mistral, DeepSeek, xAI, Together, a server on your network…). Paste its base URL, a key if it needs one, and a model name.' },
+};
+const firstRun = !localStorage['drill.cfg'];
+let cfg = load('drill.cfg', { ai: false, model: 'auto', answerWith: 'term', provider: 'claude' });
+let sets = load('drill.sets', null) || [{
+  id: 1, name: 'Sample — Cell Organelles', cards: [
+    ['Mitochondria', 'Organelle that produces ATP through cellular respiration'],
+    ['Ribosome', 'Site of protein synthesis'],
+    ['Nucleus', 'Contains the cell\'s DNA and controls cell activities'],
+    ['Golgi apparatus', 'Modifies, sorts, and packages proteins for transport'],
+    ['Chloroplast', 'Site of photosynthesis in plant cells'],
+    ['Lysosome', 'Contains digestive enzymes that break down waste'],
+    ['Cell membrane', 'Phospholipid bilayer that controls what enters and leaves the cell'],
+    ['Rough ER', 'Membrane network studded with ribosomes; makes proteins for export'],
+  ].map(([t, d]) => ({ t, d, lv: 0, miss: 0 }))
+}];
+// "Start Drill.command" opens ?ai=claude once Claude is reachable: switch AI on.
+if (new URLSearchParams(location.search).get('ai')) {
+  cfg.ai = true; history.replaceState(null, '', location.pathname + location.hash);
+}
+if (!MODELS.includes(cfg.model)) cfg.model = 'auto'; // also replaces old Ollama model names
+if (!PROVIDERS[cfg.provider]) cfg.provider = 'claude';
+cfg.models ??= {}; cfg.bases ??= {};
+save();
+
+/* ---------- views ---------- */
+let genAbort = null, aiAbort = null;
+function show(id) {
+  clearTimeout(timer); onEnter = keyPick = null;
+  aiAbort?.abort(); genAbort?.abort();
+  ['home', 'edit', 'learn'].forEach(v => $('#' + v).hidden = v !== id);
+  scrollTo(0, 0);
+}
+const stats = s => ({ n: s.cards.length, m: s.cards.filter(c => c.lv >= GOAL).length, f: s.cards.filter(c => c.lv > 0 && c.lv < GOAL).length });
+const barHTML = s => { const { n, m, f } = stats(s); return `<div class="bar"><span class="m" style="width:${m / n * 100}%"></span><span class="f" style="width:${f / n * 100}%"></span></div>` };
+
+function renderHome() {
+  $('#sets').innerHTML = sets.map(s => {
+    const { n, m } = stats(s);
+    return `<div class="set" data-id="${s.id}">
+      <div><h3>${esc(s.name)}</h3><div class="meta">${n} terms${s.cards.every(c => c.ai) ? ' · <span style="color:var(--accent)">✨ AI-optimized</span>' : ''}</div></div>
+      ${barHTML(s)}
+      <div class="foot"><span class="pct">${Math.round(m / n * 100)}% mastered</span>
+        <div class="acts">
+          <button class="icon" data-act="opt" title="Optimize for studying (AI)">${svg(ICON.spark)}</button>
+          <button class="icon" data-act="edit" title="Edit">${svg(ICON.edit)}</button>
+          <button class="icon" data-act="reset" title="Reset progress">${svg(ICON.reset)}</button>
+          <button class="icon" data-act="del" title="Delete">${svg(ICON.del)}</button>
+        </div></div></div>`;
+  }).join('') + `<button class="set new" id="newSet2"><b>+</b>New set</button>`;
+  $('#newSet2').onclick = () => openEdit();
+  show('home');
+}
+$('#sets').onclick = e => {
+  const card = e.target.closest('.set[data-id]'); if (!card) return;
+  const s = sets.find(x => x.id == card.dataset.id), act = e.target.closest('[data-act]')?.dataset.act;
+  if (act === 'edit') return openEdit(s);
+  if (act === 'opt') { openEdit(s); return optimize() }
+  if (act === 'reset') { if (confirm(`Reset progress for "${s.name}"?`)) { s.cards.forEach(c => { c.lv = 0; c.miss = 0 }); save(); renderHome() } return }
+  if (act === 'del') { if (confirm(`Delete "${s.name}"? This can't be undone.`)) { sets = sets.filter(x => x !== s); save(); renderHome() } return }
+  startLearn(s);
+};
+document.querySelectorAll('[data-home]').forEach(b => b.onclick = renderHome);
+$('#newSet').onclick = () => openEdit();
+
+/* ---------- editor ---------- */
+let editing = null;
+const SEPS = { tab: '\t', dash: ' - ', colon: ':', comma: ',' };
+// A Drill set file ({"drill":1,"name","cards":[{t,d,ai}]}) imports with its optimization already done.
+function parseJSONSet(text) {
+  if (!/^\s*\{/.test(text)) return null;
+  try { const j = JSON.parse(text); return Array.isArray(j.cards) ? j : null } catch { return null }
+}
+function parse(text) {
+  const j = parseJSONSet(text);
+  if (j) return j.cards.filter(c => c && c.t && c.d).map(c => ({ t: String(c.t).trim(), d: String(c.d).trim() }));
+  const lines = text.split($('#cardSep').value === 'semi' ? ';' : '\n').map(l => l.trim()).filter(Boolean);
+  const sep = SEPS[$('#sep').value] || ['\t', ' - ', ' — ', ':', ','].find(s => lines.filter(l => l.includes(s)).length >= lines.length * .6) || '\t';
+  const unq = s => s.trim().replace(/^"([\s\S]*)"$/, '$1').trim();
+  return lines.map(l => { const i = l.indexOf(sep); return i < 0 ? null : { t: unq(l.slice(0, i)), d: unq(l.slice(i + sep.length)) } })
+    .filter(c => c && c.t && c.d);
+}
+function renderPreview(cards) {
+  $('#count').textContent = cards.length + (cards.length === 1 ? ' card' : ' cards');
+  $('#preview').hidden = !cards.length;
+  $('#preview').innerHTML = cards.slice(0, 300).map(c => { const ai = aiOf(c); return `<div><b>${esc(c.t)}</b><span>${esc(c.d)}</span>${ai ? `<em class="kind" title="AI-chosen question style">✨ ${ai.kind}</em>` : '<i></i>'}</div>` }).join('');
+}
+function updatePreview() {
+  const j = parseJSONSet($('#raw').value);
+  if (j) {
+    for (const c of parse($('#raw').value)) { const raw = j.cards.find(x => String(x.t).trim() === c.t)?.ai; if (raw) pendingAI.set(keyOf(c), cleanAI(raw, c)) }
+    if (!$('#setName').value && j.name) $('#setName').value = String(j.name);
+  }
+  renderPreview(parse($('#raw').value));
+}
+function openEdit(s) {
+  editing = s || null; pendingAI = new Map();
+  $('#editTitle').textContent = s ? 'Edit set' : 'New set';
+  $('#setName').value = s ? s.name : '';
+  $('#sep').value = 'auto'; $('#cardSep').value = 'nl';
+  $('#raw').value = s ? s.cards.map(c => c.t + '\t' + c.d).join('\n') : '';
+  $('#genPanel').hidden = true;
+  updatePreview(); show('edit'); $(s ? '#raw' : '#setName').focus();
+}
+['#raw', '#sep', '#cardSep'].forEach(id => $(id).oninput = updatePreview);
+$('#file').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  $('#raw').value = await f.text();
+  if (!$('#setName').value) $('#setName').value = f.name.replace(/\.\w+$/, '');
+  e.target.value = ''; updatePreview();
+};
+$('#save').onclick = () => {
+  const cards = parse($('#raw').value);
+  if (!cards.length) return alert('No cards found. Put one card per line: term, separator, definition.');
+  const old = new Map((editing?.cards || []).map(c => [c.t + '\0' + c.d, c]));
+  const merged = cards.map(c => { const o = old.get(keyOf(c)), ai = pendingAI.get(keyOf(c)) || o?.ai, hook = o?.hook || ai?.hook; return { ...c, lv: o?.lv || 0, miss: o?.miss || 0, ...(hook && { hook }), ...(ai && { ai }) } });
+  const name = $('#setName').value.trim() || 'Untitled set';
+  if (editing) Object.assign(editing, { name, cards: merged });
+  else sets.unshift({ id: Date.now(), name, cards: merged });
+  save(); renderHome();
+};
+
+/* ---------- AI (the provider picked in Settings, via Drill.swift), streamed as NDJSON ---------- */
+// task: 'build' = notes → cards and Optimize (rare, accuracy-critical); 'study' = grading, hooks, explanations (frequent).
+const prov = () => PROVIDERS[cfg.provider];
+const baseFor = () => cfg.bases[cfg.provider] ?? prov().base ?? '';
+const modelFor = task => !prov().tier ? cfg.models[cfg.provider] || prov().model || ''
+  : cfg.model === 'auto' ? (task === 'build' ? 'sonnet' : 'haiku') : cfg.model;
+const aiName = (task = 'study') => prov().tier ? MODEL_NAME[modelFor(task)] : modelFor(task) || prov().name;
+const errText = t => { try { return JSON.parse(t).error } catch { return t } };
+const aiErr = e => e.name === 'AbortError' ? 'Stopped.' : !/fetch|network|load failed/i.test(e.message) ? e.message
+  : "Can't reach the AI: open Drill with the Drill app (see Settings).";
+async function aiStream(prompt, { signal, onToken, format, task = 'study' } = {}) {
+  // ponytail: plain-text body skips the CORS preflight
+  const r = await fetch('/ai/generate', { method: 'POST', signal, body: JSON.stringify({ prompt, format, model: modelFor(task), provider: cfg.provider, base: baseFor() }) });
+  if (!r.ok) throw new Error(errText(await r.text()) || 'HTTP ' + r.status);
+  const rd = r.body.getReader(), dec = new TextDecoder();
+  let buf = '', text = '', n = 0;
+  for (;;) {
+    const { value, done } = await rd.read(); if (done) break;
+    const lines = (buf += dec.decode(value, { stream: true })).split('\n'); buf = lines.pop();
+    for (const l of lines) {
+      if (!l.trim()) continue;
+      const j = JSON.parse(l); if (j.error) throw new Error(j.error);
+      text += j.response || ''; n++; onToken?.(text, n);
+    }
+  }
+  return { text, n };
+}
+
+/* ---------- notes → cards ---------- */
+// ~6000-char parts: each part is a bounded request, so progress is real and nothing runs away
+// (Claude handles big parts well and each call has ~2s overhead).
+function chunkNotes(text, max = 6000, split = /\n+|(?<=[.!?])\s+/) {
+  const parts = []; let buf = '';
+  for (const piece of text.split(split)) {
+    if (buf && buf.length + piece.length > max) { parts.push(buf); buf = '' }
+    buf += (buf ? '\n' : '') + piece;
+  }
+  if (buf.trim()) parts.push(buf);
+  return parts;
+}
+function parseCardLine(line) {
+  const p = line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').replace(/\*\*/g, '').split(/\s*::\s*/);
+  return p.length >= 2 && p[0].trim() && p[1].trim() ? { t: p[0].trim(), d: p.slice(1).join(' ').trim() } : null;
+}
+const GEN_PROMPT = notes => `Make flashcards from these study notes.
+Format: one card per line, exactly like this:
+TERM :: DEFINITION
+Rules:
+- TERM is a short key word, name, date, quote, or concept (under 10 words).
+- DEFINITION is one concise sentence using only facts from the notes.
+- One card per key fact. No numbering, no headings, no blank lines, no other text.
+
+NOTES:
+"""
+${notes}
+"""
+
+CARDS:
+`;
+// Shared progress panel for long AI jobs: one bar segment per request, live line, stats, Stop.
+function panel(nSegs) {
+  const P = $('#genPanel'), t0 = performance.now();
+  P.hidden = false; P.className = 'gen';
+  $('#genUndo').hidden = true; $('#genStop').textContent = 'Stop'; $('#genCards').textContent = 0;
+  ['#genLive', '#genSpeed', '#genPart', '#genKinds'].forEach(id => $(id).textContent = '');
+  $('#genSegs').innerHTML = '<span><i></i></span>'.repeat(nSegs);
+  const tick = setInterval(() => $('#genTime').textContent = fmtTime(performance.now() - t0), 250);
+  const busy = b => $('#fix').disabled = $('#gen').disabled = $('#opt').disabled = $('#save').disabled = $('#raw').readOnly = b;
+  busy(true); genAbort = new AbortController();
+  let wTok = 0, wMs = 0;
+  return {
+    signal: genAbort.signal, t0, segs: [...$('#genSegs').children],
+    stage: s => $('#genStage').textContent = s,
+    speed(n, tFirst, commit) { // tokens/sec across every request in this job
+      if (!tFirst) return;
+      const ms = wMs + performance.now() - tFirst;
+      if (ms > 500) $('#genSpeed').textContent = Math.round((wTok + n) / ms * 1000) + ' tok/s';
+      if (commit) { wTok += n; wMs = ms }
+    },
+    end(err, msg) { clearInterval(tick); genAbort = null; busy(false); P.classList.add(err ? 'err' : 'done'); $('#genStage').textContent = msg; $('#genStop').textContent = 'Close'; $('#genLive').textContent = '' },
+  };
+}
+async function ensureAI(ui) {
+  const p = prov();
+  ui.stage(`Connecting to ${p.name}…`);
+  const s = await fetch('/ai/status?provider=' + cfg.provider, { signal: ui.signal }).then(r => r.ok ? r.json() : {});
+  if (!('cli' in s)) throw new Error("Can't reach the AI: open Drill with the Drill app (see Settings).");
+  if (cfg.provider === 'claude' && !s.cli) throw new Error('Claude Code is not installed — get it at claude.com/claude-code and log in once, or pick another AI provider in Settings.');
+  if (!p.noKey && !p.optKey && !s.key) throw new Error(`Add your ${p.name} API key in Settings first.`);
+}
+// Fix mode must keep the user's wording: a definition whose words mostly aren't in the source was invented.
+const grounded = (d, srcLow) => { const w = d.toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) || []; return !w.length || w.filter(x => srcLow.includes(x)).length / w.length >= .5 };
+// fix = keep the user's cards and wording, only restructure; otherwise extract new cards from notes.
+const FIX_PROMPT = text => `Reformat this messy text into flashcards. It may be a copied web page, table, list, or quiz.
+Rules:
+- Keep the original wording. Do not add, invent, summarize, or drop information.
+- Pair each term with its own definition. Skip any word that has no definition in the text.
+- Remove numbering, bullets, headings, and page junk (like "Terms in this set", buttons, ads).
+- Output one card per line, exactly like this:
+TERM :: DEFINITION
+- No other text.
+
+TEXT:
+"""
+${text}
+"""
+
+CARDS:
+`;
+async function generate(fix) {
+  const notes = $('#raw').value.trim();
+  if (!notes) return alert('Paste your content (any format) into the box first, then press this.');
+  const parts = fix ? chunkNotes(notes, undefined, /\n+/) : chunkNotes(notes), cards = [], seen = new Set(), ui = panel(parts.length), stage = ui.stage, segs = ui.segs, signal = ui.signal;
+  const srcLow = notes.toLowerCase();
+  renderPreview([]);
+  try {
+    await ensureAI(ui);
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i], low = part.toLowerCase(), seg = segs[i];
+      let taken = 0, cover = 0, tFirst = 0;
+      const take = (text, final) => {
+        const lines = text.split('\n'), live = final ? '' : lines.pop();
+        for (; taken < lines.length; taken++) {
+          const c = parseCardLine(lines[taken]); if (!c || seen.has(c.t.toLowerCase()) || fix && !grounded(c.d, srcLow)) continue;
+          seen.add(c.t.toLowerCase()); cards.push(c);
+          const at = low.indexOf(c.t.toLowerCase().slice(0, 40));
+          if (at >= 0) cover = Math.max(cover, (at + c.t.length) / part.length);
+        }
+        renderPreview(cards); $('#preview').scrollTop = 1e9;
+        $('#genCards').textContent = cards.length;
+        $('#genLive').textContent = live;
+        seg.firstChild.style.width = (final ? 100 : Math.min(cover, .95) * 100) + '%';
+      };
+      seg.className = 'active';
+      $('#genPart').textContent = `part ${i + 1}/${parts.length}`;
+      stage(`Reading part ${i + 1} of ${parts.length} (${part.length.toLocaleString()} characters)…`);
+      const { text, n } = await aiStream((fix ? FIX_PROMPT : GEN_PROMPT)(part), {
+        signal, task: 'build',
+        onToken: (text, n) => {
+          if (!tFirst) { tFirst = performance.now(); stage(`${fix ? 'Reformatting' : 'Writing'} cards from part ${i + 1} of ${parts.length}`) }
+          ui.speed(n, tFirst);
+          take(text, false);
+        }
+      });
+      ui.speed(n, tFirst, true);
+      take(text, true); seg.className = '';
+    }
+    ui.end(false, `Done — ${cards.length} cards from ${parts.length} part${parts.length > 1 ? 's' : ''} in ${fmtTime(performance.now() - ui.t0)}. Next: ✨ Optimize for studying.`);
+  } catch (e) {
+    ui.end(e.name !== 'AbortError', e.name === 'AbortError' ? `Stopped — kept the ${cards.length} cards made so far.` : aiErr(e));
+  } finally {
+    if (cards.length) {
+      $('#raw').value = cards.map(c => `${c.t}\t${c.d}`.replace(/\n/g, ' ')).join('\n');
+      $('#sep').value = 'tab'; $('#cardSep').value = 'nl';
+      $('#genUndo').hidden = false;
+      $('#genUndo').onclick = () => { $('#raw').value = notes; $('#sep').value = 'auto'; $('#genPanel').hidden = true; updatePreview() };
+    }
+    updatePreview();
+  }
+}
+$('#gen').onclick = () => generate(false);
+$('#fix').onclick = () => generate(true);
+
+/* ---------- optimize: AI decides each card's question formats + writes the material ---------- */
+// kind picks the 3-stage question ladder in the learn engine (see LADDER).
+const KINDS = ['vocab', 'fact', 'formula', 'concept', 'list', 'quote'];
+// Fallback when a card arrives without a valid kind: rules pick it from the card's shape.
+function guessKind(c, k) {
+  if (/[=≈±√∑∫²³]/.test(c.d)) return 'formula';
+  if (/\d/.test(c.d) && c.d.trim().split(/\s+/).length <= 3) return 'fact';
+  if (frags(c.d).length >= 3) return 'list';
+  if (k === 'vocab' && c.d.split(/\s+/).length > 10) return 'concept';
+  return KINDS.includes(k) ? k : isLong(c.d) ? 'concept' : 'vocab';
+}
+// Claude writes everything in one pass per batch of cards: question material, why each decoy is wrong, and a memory hook.
+const HOOK_RULES = `How to build a memory hook:
+1. Find a handle for the TERM: a sound-alike word, a visual pun, or a striking word or image from it.
+2. Tie that handle to the single most testable fact in the MEANING. The hook must encode that fact, not just the topic.
+3. Make it one concrete, slightly absurd scene the student can picture at a glance. Under 30 words.
+For a quote or literary moment, anchor on a key word or image from the quote and link it to what the moment shows.
+Good examples:
+Mitochondria (makes ATP in cellular respiration) → "Mighty Kondria" is a bodybuilder who breathes hard and sweats out ATP batteries with every rep.
+Litotes (understatement using a negative) → Your little toes are "not bad": nobody brags about little toes, they just aren't bad.
+Green light (Gatsby's longing for Daisy and the unreachable American Dream) → Gatsby sits at a traffic light stuck on green, flooring the gas toward Daisy's dock, but the road never gets shorter.
+Never reuse an example; write a fresh hook for this exact card.`;
+const arrOf = (type, n) => ({ type: 'array', items: { type }, minItems: n, maxItems: n });
+const BATCH_SCHEMA = { type: 'object', required: ['cards'], properties: { cards: { type: 'array', items: { type: 'object',
+  required: ['n', 'kind', 'true_statements', 'false_statements', 'confusable_terms', 'why_not', 'key_word', 'memory_hook'], properties: {
+    n: { type: 'integer' }, kind: { type: 'string', enum: KINDS }, true_statements: arrOf('string', 2), false_statements: arrOf('string', 2),
+    confusable_terms: arrOf('string', 3), why_not: arrOf('string', 3), key_word: { type: 'string' }, memory_hook: { type: 'string' } } } } } };
+const BATCH_PROMPT = (cards, others) => `You are an expert tutor preparing flashcards for active recall practice. For EACH numbered card, write:
+- kind: vocab (word + meaning), fact (name, date, place, number), formula (equation or rule), concept (process or idea that needs explaining), list (several separate parts), or quote (literary quote or moment + its significance).
+- true_statements: 2 sentences about the term that are true according to the card, reworded so they can't be matched word for word.
+- false_statements: 2 believable sentences about the term that are definitely WRONG. Each changes exactly one key detail (swap in a related term, a wrong character or scene, a flipped cause and effect, a wrong number). Double-check each one really is false.
+- confusable_terms: 3 terms a student could genuinely mix up with this one. Prefer other cards from the same set (listed below); otherwise real terms from the same subject. 1-6 words each, never the term itself.
+- why_not: for each confusable term, in the same order, one short sentence saying what it actually is and the detail that rules it out.
+- key_word: the single most important word in the definition.
+- memory_hook: following the rules below.
+
+${HOOK_RULES}
+
+OTHER CARDS IN THIS SET (for confusable terms): ${others}
+
+CARDS:
+${cards.map((c, i) => `#${i + 1} TERM: ${c.t}\nDEFINITION: ${c.d}`).join('\n\n')}`;
+const strs = (a, n) => (Array.isArray(a) ? a : []).map(s => String(s).trim()).filter(Boolean).slice(0, n);
+// Normalizes optimization data from Claude or from a pasted Drill set file (a trust boundary).
+function cleanAI(a, c) {
+  const v = view(c), t = norm(v.t), key = String(a.key || '').replace(/[^\p{L}\p{N}'-]/gu, '');
+  const wrong = strs(a.wrong, 3).filter(w => { const x = norm(w); return x && x !== t && !x.includes(t) && !t.includes(x) });
+  const notes = {}; for (const w of wrong) if (a.notes?.[w]) notes[w] = String(a.notes[w]).slice(0, 400);
+  return {
+    kind: KINDS.includes(a.kind) ? a.kind : guessKind(v, ''), tru: strs(a.tru, 3), fal: strs(a.fal, 3), wrong,
+    ...(Object.keys(notes).length && { notes }),
+    ...(key.length >= 3 && v.d.toLowerCase().includes(key.toLowerCase()) && !v.t.toLowerCase().includes(key.toLowerCase()) && { key }),
+    ...(a.hook && { hook: String(a.hook).slice(0, 500) }),
+  };
+}
+async function optimizeClaude(todo, all, ui, onCard) {
+  const B = 8, batches = [];
+  for (let i = 0; i < todo.length; i += B) batches.push(todo.slice(i, i + B));
+  const others = all.map(c => view(c).t).join(' | ').slice(0, 4000);
+  let next = 0, running = 0;
+  const work = async () => { // 3 batches in flight: ~3× faster, still gentle on your plan's limits
+    while (next < batches.length) {
+      const b = next++, batch = batches[b], seg = ui.segs[b];
+      seg.className = 'active'; running++;
+      ui.stage(`${aiName('build')} is writing ${running} batch${running > 1 ? 'es' : ''} at once: question types, true/false, decoys + why they're wrong, memory hooks…`);
+      let len = 0;
+      const { text } = await aiStream(BATCH_PROMPT(batch.map(c => ({ t: view(c).t, d: view(c).d })), others), {
+        signal: ui.signal, format: BATCH_SCHEMA, task: 'build',
+        onToken: t => { len = t.length; seg.firstChild.style.width = Math.min(95, len / (batch.length * 9)) + '%'; $('#genLive').textContent = t.replace(/[{}\[\]"]/g, '').replace(/_/g, ' ').replace(/\s+/g, ' ').slice(-110) },
+      });
+      // some models wrap the JSON in prose or ``` fences
+      for (const r of JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)).cards || []) {
+        const c = batch[r.n - 1]; if (!c) continue;
+        onCard(c, cleanAI({ kind: r.kind, tru: r.true_statements, fal: r.false_statements, wrong: r.confusable_terms, key: r.key_word, hook: r.memory_hook,
+          notes: Object.fromEntries(strs(r.confusable_terms, 3).map((w, i) => [w, r.why_not?.[i]])) }, c));
+      }
+      seg.firstChild.style.width = '100%'; seg.className = ''; running--;
+    }
+  };
+  await Promise.all([work(), work(), work()]);
+}
+let pendingAI = new Map();
+const keyOf = c => c.t + '\0' + c.d;
+const aiOf = c => pendingAI.get(keyOf(c)) || editing?.cards.find(x => keyOf(x) === keyOf(c))?.ai;
+async function optimize() {
+  const all = parse($('#raw').value);
+  if (!all.length) return alert('Add some cards first (or turn notes into cards), then optimize.');
+  let todo = all.filter(c => !aiOf(c));
+  if (!todo.length) { if (!confirm('Every card is already optimized. Re-optimize all of them?')) return; todo = all }
+  const ui = panel(Math.ceil(todo.length / 8)), tally = {};
+  $('#genSegs').style.gap = todo.length > 30 ? '1px' : '';
+  let done = 0, skipped = 0;
+  const stats = () => {
+    $('#genCards').textContent = done;
+    $('#genKinds').textContent = Object.entries(tally).map(([k, n]) => `${n} ${k}`).join(' · ');
+  };
+  const store = (c0, ai) => {
+    done++; tally[ai.kind] = (tally[ai.kind] || 0) + 1;
+    pendingAI.set(keyOf(c0), ai);
+    const orig = editing?.cards.find(x => keyOf(x) === keyOf(c0));
+    if (orig) { orig.ai = ai; if (ai.hook && !orig.hook) orig.hook = ai.hook; save() } // existing sets keep results even if you leave mid-run
+    stats(); renderPreview(all);
+  };
+  try {
+    await ensureAI(ui);
+    await optimizeClaude(todo, all, ui, store); skipped = todo.length - done;
+    ui.end(false, `Done — optimized ${done} card${done === 1 ? '' : 's'} in ${fmtTime(performance.now() - ui.t0)}${skipped ? ` (${skipped} unreadable, they keep standard questions)` : ''}. ${editing ? 'Saved to this set.' : 'Press Save set to keep it.'}`);
+  } catch (e) {
+    ui.end(e.name !== 'AbortError', e.name === 'AbortError' ? `Stopped — kept ${done} optimized card${done === 1 ? '' : 's'}.` : aiErr(e));
+  } finally { renderPreview(all) }
+}
+$('#opt').onclick = optimize;
+$('#genStop').onclick = () => genAbort ? genAbort.abort() : $('#genPanel').hidden = true;
+
+/* ---------- answer checking ---------- */
+const norm = s => s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
+  .replace(/[^\p{L}\p{N}+\-*/=^()<>.²³√π]/gu, ' ').replace(/\s+/g, ' ').trim().replace(/^(the|a|an) /, '');
+function lev(a, b) {
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+// 2 = exact, 1 = close enough (typo), 0 = wrong. Accepts any alternative split by ";" or " / ", and the answer without a leading section label ("1.5 · ").
+function check(input, answer) {
+  const a = norm(input); if (!a) return 0;
+  for (const b of [answer, answer.replace(/^[\d.\s·:–—-]+(?=\D)/, ''), ...answer.split(/\s*;\s*|\s+\/\s+/)].map(norm).filter(Boolean)) {
+    if (a === b) return 2;
+    if (b.length > 4 && lev(a, b) <= Math.max(1, Math.floor(b.length * .15))) return 1;
+  }
+  return 0;
+}
+const isLong = s => s.length > 40 || s.trim().split(/\s+/).length > 5;
+// Split a long answer into independent "details" for select-all questions.
+const frags = s => s.split(/\s*(?:[;.!?]+|,\s|\s[—–-]\s)\s*/).map(x => x.trim().replace(/^(and|or|but)\s+/i, '')).filter(x => x.split(/\s+/).length >= 2);
+const STOP = new Set('that this with from into than then also their there which where when what were have been they them were does about over under after before because while these those other such only very more most some each your'.split(' '));
+function makeCloze(text, key) {
+  const toks = text.split(/(\s+)/), cand = [];
+  const all = toks.map((w, i) => ({ i, core: w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '') }));
+  const k = key && all.find(x => x.core && x.core.toLowerCase() === key.toLowerCase());
+  if (k) return { toks, picks: [k] }; // AI picked the key word to blank
+  all.forEach(x => { if (x.core.length >= 4 && !STOP.has(x.core.toLowerCase())) cand.push(x) });
+  if (!cand.length) return null;
+  const n = cand.length > 8 ? 2 : 1;
+  return { toks, picks: shuffle(cand.sort((a, b) => b.core.length - a.core.length).slice(0, n * 3)).slice(0, n) };
+}
+
+// Display form of a card: drops list numbering / short leading labels like "1. (Tier 1)", splits off trailing [theme · tags].
+function view(c) {
+  const m = c.d.match(/\s*\[([^\]]+)\]\s*$/);
+  return {
+    t: c.t.replace(/^\s*\d{1,3}[.)]\s+/, '').replace(/^\([^)]{1,20}\)\s*/, '') || c.t,
+    d: m ? c.d.slice(0, m.index) : c.d,
+    tags: m ? m[1].split(/\s*[·,;|]\s*/).filter(Boolean) : [],
+  };
+}
+const wordSet = s => new Set((s.toLowerCase().match(/\p{L}{4,}/gu) || []).filter(w => !STOP.has(w)));
+// Other cards ranked by similarity to c: shared words (cosine) + shared tags.
+function similar(c, cards) {
+  const a = view(c), aw = wordSet(a.t + ' ' + a.d);
+  return cards.filter(x => x !== c).map(x => {
+    const b = view(x), bw = wordSet(b.t + ' ' + b.d);
+    let shared = 0; bw.forEach(w => aw.has(w) && shared++);
+    return { x, s: shared / Math.sqrt(aw.size * bw.size || 1) * 10 + b.tags.filter(t => a.tags.includes(t)).length * 2 };
+  }).sort((p, q) => q.s - p.s).map(o => o.x);
+}
+function themeQuiz(v) {
+  if (!v.tags.length) return null;
+  const pool = shuffle([...new Set(cur.set.cards.flatMap(x => view(x).tags))].filter(t => !v.tags.includes(t)));
+  if (pool.length < 2) return null;
+  const right = v.tags.slice(0, 4);
+  return Object.assign(shuffle([...right.map(t => ({ t, ok: true })), ...pool.slice(0, Math.max(2, 6 - right.length)).map(t => ({ t, ok: false }))]), { themes: true, reveal: `${v.t} — ${v.tags.join(' · ')}` });
+}
+
+/* ---------- AI grading + memory hooks ---------- */
+const GRADE_PROMPT = (q, ref, ans) => `You are a fair tutor grading a student's flashcard answer.
+QUESTION: ${q}
+REFERENCE ANSWER: ${ref}
+STUDENT ANSWER: ${ans}
+Grade understanding, not wording: paraphrases, synonyms and equivalent formulas are fine. Missing key ideas or wrong facts lower the score. Blank or off-topic answers score 0.
+Reply in exactly this format and nothing else:
+SCORE: <0-100>
+GOT: <one short sentence on what is right>
+MISSED: <one short sentence naming the specific idea from the reference answer that is missing or wrong, or "Nothing">`;
+async function aiGrade(prompt, answer, typed, box) {
+  aiAbort = new AbortController();
+  box.innerHTML = `<div class="ai-box"><div class="ai-head"><span class="spin"></span><span class="ai-stage">Sending your answer to ${esc(aiName())}…</span><span class="ai-time">0.0s</span></div>
+    <div class="ai-body" hidden><div class="score"><div class="meter"><span></span></div><b>—</b></div>
+    <div class="ai-row"><span class="lbl">Got</span><p class="got"></p></div><div class="ai-row"><span class="lbl">Missed</span><p class="miss"></p></div></div></div>`;
+  const q = s => box.querySelector(s), t0 = performance.now();
+  const tick = setInterval(() => q('.ai-time').textContent = ((performance.now() - t0) / 1000).toFixed(1) + 's', 100);
+  const read = t => ({ score: +(t.match(/SCORE:\s*(\d+)/i)?.[1] ?? NaN), got: t.match(/GOT:\s*(.*)/i)?.[1].trim() || '', missed: t.match(/MISSED:\s*(.*)/i)?.[1].trim() || '' });
+  try {
+    const { text } = await aiStream(GRADE_PROMPT(prompt, answer, typed), {
+      signal: aiAbort.signal,
+      onToken: t => {
+        const g = read(t);
+        q('.ai-stage').textContent = 'Grading your answer…'; q('.ai-body').hidden = false;
+        if (!isNaN(g.score)) { q('.meter span').style.width = Math.min(100, g.score) + '%'; q('.score b').textContent = Math.min(100, g.score) }
+        q('.got').textContent = g.got; q('.miss').textContent = g.missed;
+      }
+    });
+    const g = read(text);
+    if (isNaN(g.score)) throw new Error('The AI reply had no score.');
+    g.score = Math.min(100, g.score);
+    q('.ai-box').classList.add(g.score >= 70 ? 'ok' : g.score >= 40 ? 'mid' : 'bad');
+    q('.ai-stage').textContent = `Graded by ${aiName()}`;
+    return g;
+  } finally { clearInterval(tick); q('.spin')?.remove() }
+}
+async function memoryHook(c, el, btn) {
+  btn.disabled = true; btn.textContent = 'Thinking…'; el.hidden = false;
+  aiAbort = new AbortController();
+  try {
+    const { text } = await aiStream(`Write one memory hook that makes this flashcard impossible to forget.
+TERM: ${view(c).t}
+MEANING: ${view(c).d}
+${c.hook ? `The student didn't like this one, so take a different angle: ${c.hook}\n` : ''}
+${HOOK_RULES}
+
+Reply with only the hook: no label, no preamble, no quotes around it.`,
+      { signal: aiAbort.signal, onToken: t => el.textContent = t });
+    c.hook = text.trim().replace(/^(hook|memory hook):\s*/i, ''); el.textContent = c.hook; save();
+  } catch (e) { el.textContent = aiErr(e) }
+  btn.disabled = false; btn.textContent = '↻ New hook';
+}
+// After a miss: a tutor-style "why" tied to this exact question, the right answer and the pick.
+async function explainWhy(c, ctx, answer, el) {
+  aiAbort = new AbortController();
+  const v = view(c);
+  try {
+    await aiStream(`A student just got a flashcard question wrong. Explain it like a sharp, friendly tutor.
+QUESTION THEY SAW: ${ctx.q}
+CORRECT ANSWER: ${answer}
+THE CARD: ${v.t} — ${v.d}
+STUDENT'S ANSWER: ${ctx.picked || '(said they did not know)'}${ctx.pickedIs ? ` (that is actually: ${ctx.pickedIs})` : ''}${ctx.others?.length ? `
+OTHER CHOICES SHOWN: ${ctx.others.join(' | ')}` : ''}
+In 2-3 short sentences: name the specific clue in the question that points to the correct answer, then say exactly why the student's answer doesn't fit. No preamble, no lists, don't repeat the question.`,
+      { signal: aiAbort.signal, onToken: t => { el.classList.remove('loading'); el.textContent = t } });
+  } catch (e) { if (e.name !== 'AbortError') el.textContent = aiErr(e) }
+}
+
+/* ---------- learn engine ---------- */
+// Each card climbs GOAL stages: 0 recognise (MC) → 1 cued recall (written / select-all / fill-blank) → 2 free recall (written again / explain) → mastered.
+let cur = {}, onEnter = null, keyPick = null, timer;
+const stage = $('#stage');
+function startLearn(s) {
+  cur = { set: s, roundNo: 0 };
+  $('#learnTitle').textContent = s.name;
+  $('#answerWith').value = cfg.answerWith;
+  show('learn'); nextRound();
+}
+$('#answerWith').onchange = e => { cfg.answerWith = e.target.value; save() };
+function updateProgress() {
+  const { n, m, f } = stats(cur.set);
+  $('#learn .bar .m').style.width = m / n * 100 + '%';
+  $('#learn .bar .f').style.width = f / n * 100 + '%';
+  $('#cNew').textContent = n - m - f; $('#cFam').textContent = f; $('#cMas').textContent = m;
+}
+function nextRound() {
+  updateProgress();
+  const pool = shuffle(cur.set.cards.filter(c => c.lv < GOAL)).sort((a, b) => b.lv - a.lv || b.miss - a.miss);
+  if (!pool.length) return finishSet();
+  Object.assign(cur, { round: pool.slice(0, ROUND), i: 0, results: [] });
+  cur.roundNo++; ask();
+}
+// r: true = correct (climb), 'partial' = stays put but comes back, false = drop a stage
+function grade(c, r) {
+  if (r === true) c.lv = Math.min(GOAL, c.lv + 1);
+  else { c.miss++; if (!r) c.lv = Math.max(0, c.lv - 1) }
+  cur.results.push({ c, r }); save(); updateProgress();
+}
+function next() { clearTimeout(timer); aiAbort?.abort(); cur.i++; ask() }
+
+function ask() {
+  onEnter = keyPick = null;
+  if (cur.i >= cur.round.length) return roundSummary();
+  const c = cur.round[cur.i], v = view(c);
+  const dir = cfg.answerWith === 'mix' ? (Math.random() < .5 ? 'term' : 'def') : cfg.answerWith;
+  const [prompt, answer] = dir === 'term' ? [v.d, v.t] : [v.t, v.d];
+  // What a wrong pick actually means, so feedback can say why it isn't the answer.
+  cur.meaningOf = a => { const x = cur.set.cards.find(x => (dir === 'term' ? view(x).t : view(x).d) === a); return x ? (dir === 'term' ? view(x).d : view(x).t) : c.ai?.notes?.[a] };
+  // Most similar cards first (shared words + themes), so wrong choices are actually tempting.
+  const otherAnswers = [...new Set(similar(c, cur.set.cards).map(x => dir === 'term' ? view(x).t : view(x).d))].filter(a => a !== answer);
+  const long = isLong(answer);
+
+  // Optimized cards follow the AI-chosen ladder; others use the length-based default.
+  const ai = LADDER[c.ai?.kind] ? c.ai : null;
+  let type = ai ? LADDER[ai.kind][Math.min(c.lv, GOAL - 1)] : c.lv === 0 ? 'mc' : !long ? 'write' : c.lv === 1 ? 'mid' : 'explain', built, aiMade = false;
+  if (type === 'tf' && !ai.tru.length && !ai.fal.length) type = 'mc';
+  if (type === 'select') type = (built = aiSelect(ai)) ? 'check' : 'mid';
+  if (type === 'cloze' && !(built = makeCloze(answer, ai?.key))) type = 'write';
+  if (type === 'write' && long) type = 'explain';
+  if (type === 'explain' && !long) type = 'write';
+  const themes = c.lv === 1 && themeQuiz(v);
+  if (themes && Math.random() < .5) { type = 'check'; built = themes }
+  // The set's own similar cards beat AI-invented decoys; those only fill in for tiny sets.
+  const aiWrong = dir === 'term' && ai ? ai.wrong.filter(w => w.length > 3) : [];
+  const mcPool = [...new Set([...shuffle(otherAnswers.slice(0, 6)), ...shuffle([...aiWrong])])].filter(a => norm(a) !== norm(answer));
+  if (type === 'mc') { if (!mcPool.length) type = long ? 'explain' : 'write'; else { built = mcPool; aiMade = mcPool.slice(0, 3).some(a => aiWrong.includes(a)) } }
+  if (type === 'mid') {
+    const tries = shuffle([['check', () => buildCheck(answer, otherAnswers.slice(0, 8))], ['cloze', () => makeCloze(answer)]]);
+    for (const [t, f] of tries) if ((built = f())) { type = t; break }
+    if (!built) type = 'explain';
+  }
+  if (type === 'tf') { const truth = !ai.fal.length || (ai.tru.length > 0 && Math.random() < .5); built = { truth, st: shuffle([...(truth ? ai.tru : ai.fal)])[0] } }
+  if (type === 'tf' || built?.ai) aiMade = true;
+  cur.type = type;
+  const META = {
+    mc: ['Multiple choice', '', ''],
+    tf: ['True or false', 'a', 'Press 1 or T for true, 2 or F for false.'],
+    check: [built?.themes ? 'Themes' : 'Select all', 'a', `Select every ${built?.themes ? 'theme it connects to' : built?.ai ? 'true statement' : 'detail that belongs'}. Number keys toggle, ↵ checks.`],
+    cloze: ['Fill the blank', 'a', 'Type the missing word' + (built?.picks?.length > 1 ? 's.' : '.')],
+    write: [c.lv >= 2 ? 'Recall again' : 'Written', 'w', c.lv >= 2 ? 'One more clean recall locks it in.' : ''],
+    explain: [cfg.ai ? 'Explain · AI graded' : 'Explain · self graded', 'w', 'In your own words. Understanding beats exact wording.'],
+  }[type];
+  const label = type === 'tf' ? 'Statement' : built?.ai || built?.themes ? v.t : dir === 'term' ? 'Definition' : 'Term';
+  const text = type === 'tf' ? built.st : built?.themes ? `Which themes does “${v.t}” connect to?` : built?.ai ? `Which of these are true about “${v.t}”?` : prompt;
+  const head = `<div class="q-label">${esc(label)}
+    <span class="tag ${META[1]}">${aiMade ? '✨ ' : ''}${META[0]}</span>
+    ${c.miss ? `<span class="tag r">Missed ${c.miss}×</span>` : ''}
+    <span class="qn"><span class="pips" title="Stage ${c.lv + 1} of ${GOAL}">${Array.from({ length: GOAL }, (_, k) => `<i class="${k < c.lv ? 'on' : ''}"></i>`).join('')}</span>${cur.i + 1}/${cur.round.length} · R${cur.roundNo}</span></div>
+    <div class="q-text">${esc(text)}</div>${META[2] ? `<div class="hint-line">${META[2]}</div>` : ''}`;
+  ({ mc: askMC, tf: askTF, check: askCheck, cloze: askCloze, write: askWrite, explain: askExplain })[type](c, head, prompt, answer, otherAnswers, built, aiMade);
+}
+// Stage ladders per AI-chosen kind: recognise → cued recall → free recall.
+const LADDER = {
+  vocab: ['mc', 'tf', 'write'], fact: ['mc', 'write', 'write'], formula: ['mc', 'cloze', 'write'],
+  concept: ['tf', 'select', 'explain'], list: ['mc', 'select', 'explain'], quote: ['mc', 'select', 'explain'],
+};
+function aiSelect(ai) {
+  if (!ai.tru.length || !ai.fal.length || ai.tru.length + ai.fal.length < 3) return null;
+  return Object.assign(shuffle([...ai.tru.map(t => ({ t, ok: true })), ...ai.fal.map(t => ({ t, ok: false }))]), { ai: true });
+}
+function askTF(c, head, prompt, answer, others, { truth, st }) {
+  stage.innerHTML = `<div class="q">${head}<div class="opts"><button class="opt"><kbd>1</kbd><span>True</span></button><button class="opt"><kbd>2</kbd><span>False</span></button></div><div class="fb"></div></div>`;
+  const btns = [...stage.querySelectorAll('.opt')];
+  keyPick = i => {
+    if (i > 1) return;
+    keyPick = null; btns.forEach(b => b.disabled = true);
+    btns.forEach((b, j) => b.classList.add((j === 0) === truth ? 'right' : j === i ? 'wrong' : 'dim'));
+    finish(c, (i === 0) === truth, answer, { ctx: { q: `True or false: ${st}`, picked: i === 0 ? 'True' : 'False' }, reveal: `It's ${truth ? 'true' : 'false'}. ${view(c).t} — ${view(c).d}`, flag: () => { const a = c.ai[truth ? 'tru' : 'fal']; a.splice(a.indexOf(st), 1) } });
+  };
+  btns.forEach((b, i) => b.onclick = () => keyPick?.(i));
+}
+
+function askMC(c, head, prompt, answer, others, pool, aiMade) {
+  const opts = shuffle([answer, ...pool.slice(0, 3)]);
+  stage.innerHTML = `<div class="q">${head}<div class="opts ${isLong(answer) ? 'one' : ''}">${opts.map((o, i) => `<button class="opt"><kbd>${i + 1}</kbd><span>${esc(o)}</span></button>`).join('')}</div><div class="fb"></div></div>`;
+  const btns = [...stage.querySelectorAll('.opt')];
+  keyPick = i => {
+    if (i >= btns.length) return;
+    keyPick = null; btns.forEach(b => b.disabled = true);
+    btns.forEach((b, j) => b.classList.add(opts[j] === answer ? 'right' : j === i ? 'wrong' : 'dim'));
+    const wrongs = opts.filter(o => o !== answer).sort((a, b) => (b === opts[i]) - (a === opts[i]));
+    finish(c, opts[i] === answer, answer, { ...(aiMade && { flag: () => { c.ai.wrong = [] } }),
+      ctx: { q: prompt, picked: opts[i], pickedIs: cur.meaningOf(opts[i]), others: wrongs, whyNot: wrongs.map(o => ({ t: o, m: cur.meaningOf(o), picked: o === opts[i] })) } });
+  };
+  btns.forEach((b, i) => b.onclick = () => keyPick?.(i));
+}
+
+function buildCheck(answer, others) {
+  const right = frags(answer);
+  const wrong = shuffle([...new Set(others.flatMap(frags))].filter(f => !right.includes(f)));
+  if (right.length < 2 || wrong.length < 2) return null;
+  const r = shuffle(right).slice(0, 3);
+  return shuffle([...r.map(t => ({ t, ok: true })), ...wrong.slice(0, 5 - r.length).map(t => ({ t, ok: false }))]);
+}
+function askCheck(c, head, prompt, answer, others, opts) {
+  stage.innerHTML = `<div class="q">${head}<div class="opts one">${opts.map((o, i) => `<button class="opt chk" role="checkbox" aria-checked="false"><kbd>${i + 1}</kbd><span>${esc(o.t)}</span></button>`).join('')}</div>
+    <div class="row end" style="margin-top:16px"><button class="btn primary" id="checkBtn">Check <kbd>↵</kbd></button></div><div class="fb"></div></div>`;
+  const btns = [...stage.querySelectorAll('.opt')];
+  const toggle = i => { if (!btns[i] || btns[i].disabled) return; btns[i].classList.toggle('on'); btns[i].setAttribute('aria-checked', btns[i].classList.contains('on')) };
+  btns.forEach((b, i) => b.onclick = () => toggle(i));
+  keyPick = toggle;
+  const submit = () => {
+    const sel = btns.map(b => b.classList.contains('on'));
+    if (!sel.some(Boolean)) { stage.querySelector('.opts').classList.remove('shake'); void stage.offsetWidth; stage.querySelector('.opts').classList.add('shake'); onEnter = submit; return }
+    keyPick = null; $('#checkBtn').parentNode.remove(); btns.forEach(b => b.disabled = true);
+    btns.forEach((b, i) => b.classList.add(opts[i].ok ? (sel[i] ? 'right' : 'missed') : sel[i] ? 'wrong' : 'dim'));
+    const wrongPicks = opts.some((o, i) => !o.ok && sel[i]), missed = opts.some((o, i) => o.ok && !sel[i]);
+    const owner = s => { const x = cur.set.cards.find(x => x !== c && view(x).d.includes(s)); return x && `That's from “${view(x).t}”` };
+    const badPicks = opts.filter((o, i) => !o.ok && sel[i]);
+    finish(c, !wrongPicks && !missed ? true : !wrongPicks ? 'partial' : false, answer,
+      { auto: false, ctx: { q: stage.querySelector('.q-text').textContent, picked: opts.filter((o, i) => sel[i]).map(o => o.t).join(' + '), others: opts.filter(o => o.ok).map(o => `correct: ${o.t}`),
+        whyNot: badPicks.map(o => ({ t: o.t, m: owner(o.t) || 'Not part of this card', picked: true })) }, ...(opts.themes && { reveal: opts.reveal }), ...(opts.ai && { reveal: `${view(c).t} — ${view(c).d}`, flag: () => { c.ai.tru = []; c.ai.fal = [] } }) });
+  };
+  $('#checkBtn').onclick = submit; onEnter = submit;
+}
+
+function askCloze(c, head, prompt, answer, others, { toks, picks }) {
+  const html = toks.map((w, i) => {
+    const p = picks.find(p => p.i === i); if (!p) return esc(w);
+    const at = w.indexOf(p.core);
+    return `${esc(w.slice(0, at))}<input class="blank" data-a="${esc(p.core)}" style="width:${Math.max(p.core.length, 5) + 2}ch" autocomplete="off" autocapitalize="off" spellcheck="false">${esc(w.slice(at + p.core.length))}`;
+  }).join('');
+  stage.innerHTML = `<div class="q">${head}<form><div class="cloze">${html}</div>
+    <div class="row between" style="margin-top:14px"><button class="btn ghost dunno" type="button">Don't know?</button><button class="btn primary">Check</button></div></form><div class="fb"></div></div>`;
+  const ins = [...stage.querySelectorAll('.blank')], form = stage.querySelector('form');
+  ins[0].focus();
+  const lock = () => { ins.forEach(x => x.disabled = true); form.querySelector('.row').remove() };
+  form.onsubmit = e => {
+    e.preventDefault();
+    if (ins.some(x => !x.value.trim())) return ins.find(x => !x.value.trim()).focus();
+    const s = ins.map(x => check(x.value, x.dataset.a)); lock();
+    ins.forEach((x, k) => { x.classList.add(s[k] ? 'right' : 'wrong'); if (!s[k]) x.title = x.dataset.a });
+    const hits = s.filter(Boolean).length;
+    finish(c, hits === s.length ? true : hits ? 'partial' : false, answer, { typed: ins.map(x => x.value).join(' · '), close: s.includes(1), ctx: { q: `Fill the blank: ${answer}`, picked: ins.map(x => x.value).join(' · ') } });
+  };
+  stage.querySelector('.dunno').onclick = () => { lock(); finish(c, false, answer, { ctx: { q: prompt } }) };
+}
+
+function askWrite(c, head, prompt, answer) {
+  stage.innerHTML = `<div class="q">${head}
+    <form class="write"><input id="ans" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type the answer"><button class="btn primary">Answer</button></form>
+    <button class="btn ghost dunno" type="button">Don't know?</button><div class="ai"></div><div class="fb"></div></div>`;
+  const inp = $('#ans'), dunno = stage.querySelector('.dunno'), form = stage.querySelector('form');
+  inp.focus();
+  const lock = () => { inp.disabled = true; form.querySelector('button').disabled = true; dunno.remove() };
+  form.onsubmit = async e => {
+    e.preventDefault();
+    const v = inp.value.trim(); if (!v || inp.disabled) return;
+    lock();
+    let s = check(v, answer);
+    if (!s && cfg.ai) {
+      const box = stage.querySelector('.ai');
+      try { if ((await aiGrade(prompt, answer, v, box)).score >= 70) s = 1 }
+      catch (err) { if (err.name === 'AbortError') return; box.innerHTML = `<p class="ai-err">${esc(aiErr(err))} Graded by exact match instead.</p>` }
+    }
+    const twin = !s && cur.set.cards.find(x => x !== c && check(v, view(x).t) === 2);
+    finish(c, s > 0, answer, { typed: v, close: s === 1, ctx: { q: prompt, picked: v, ...(twin && { pickedIs: view(twin).d, whyNot: [{ t: view(twin).t, m: view(twin).d, picked: true }] }) } });
+  };
+  dunno.onclick = () => { lock(); finish(c, false, answer, { ctx: { q: prompt } }) };
+}
+
+function askExplain(c, head, prompt, answer) {
+  stage.innerHTML = `<div class="q">${head}
+    <textarea class="explain" placeholder="Explain it from memory, no peeking…"></textarea>
+    <div class="row between" style="margin-top:12px"><button class="btn ghost dunno" type="button">Don't know?</button>
+    <button class="btn primary" id="explainBtn">${cfg.ai ? '✨ Grade with AI' : 'Reveal &amp; self-grade'} <kbd>⌘↵</kbd></button></div>
+    <div class="ai"></div><div class="fb"></div></div>`;
+  const ta = stage.querySelector('textarea'), box = stage.querySelector('.ai');
+  ta.focus();
+  const lock = () => { ta.disabled = true; $('#explainBtn').parentNode.remove() };
+  const submit = async () => {
+    const v = ta.value.trim(); if (!v) return ta.focus();
+    lock();
+    if (cfg.ai) {
+      try {
+        const { score } = await aiGrade(prompt, answer, v, box);
+        return finish(c, score >= 70 ? true : score >= 40 ? 'partial' : false, answer, { typed: v, auto: false, echo: false });
+      } catch (err) { if (err.name === 'AbortError') return; box.innerHTML = `<p class="ai-err">${esc(aiErr(err))} Grade yourself instead:</p>` }
+    }
+    selfGrade(c, answer, v);
+  };
+  ta.onkeydown = e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submit() } };
+  $('#explainBtn').onclick = submit;
+  stage.querySelector('.dunno').onclick = () => { lock(); finish(c, false, answer) };
+}
+function selfGrade(c, answer, typed) {
+  const fb = stage.querySelector('.fb');
+  fb.innerHTML = `<div class="compare"><div><div class="lbl">You wrote</div><p>${esc(typed)}</p></div><div><div class="lbl">Model answer</div><p class="ans">${esc(answer)}</p></div></div>
+    <div class="row self"><span class="sub" style="font-size:13px;margin-right:auto">Be honest — how close were you?</span>
+    <button class="btn" data-g="0"><kbd>1</kbd> Missed it</button><button class="btn" data-g="1"><kbd>2</kbd> Partly</button><button class="btn primary" data-g="2"><kbd>3</kbd> Got it</button></div>`;
+  keyPick = i => { if (i > 2) return; keyPick = null; finish(c, [false, 'partial', true][i], answer) };
+  fb.querySelectorAll('[data-g]').forEach(b => b.onclick = () => keyPick?.(+b.dataset.g));
+}
+
+// reveal: what to show as the answer (defaults to the card answer). flag: removes a bad AI-made question.
+// ctx: the question, the pick, and what each wrong choice really is — drives the "why" feedback.
+function finish(c, r, answer, { typed, close, auto = true, echo = true, reveal = answer, flag, ctx } = {}) {
+  const prev = { lv: c.lv, miss: c.miss };
+  grade(c, r);
+  const fb = stage.querySelector('.fb');
+  stage.querySelector('.q').classList.add(r === true ? 'ok' : r ? 'mid' : 'bad');
+  if (r === true) {
+    fb.innerHTML = `<div class="msg ok">${PRAISE[Math.random() * PRAISE.length | 0]}${close ? ` <span>— exact answer: <b>${esc(answer)}</b></span>` : ''}
+      ${auto ? '' : `<div class="lbl" style="margin-top:14px">Full answer</div><div class="ans" style="font-weight:500;font-size:15px">${esc(reveal)}</div><div class="row end" style="margin-top:16px">${flag ? '<button class="btn ghost" id="flag" style="margin-right:auto">⚑ Bad question</button>' : ''}<button class="btn primary" id="cont">Continue <kbd>↵</kbd></button></div>`}</div>`;
+    if ($('#flag')) $('#flag').onclick = () => unflag(c, prev, flag);
+    if (auto) timer = setTimeout(next, close ? 2000 : 850);
+    else $('#cont').onclick = next;
+    onEnter = next;
+    return;
+  }
+  fb.innerHTML = `<div class="msg ${r ? 'mid' : 'bad'}">
+    <div class="verdict">${r ? 'Almost — partly there.' : 'Not quite — study this one.'}</div>
+    ${typed && echo ? `<div class="lbl">You said</div><div class="yours">${esc(typed)}</div>` : ''}
+    <div class="lbl">Correct answer</div><div class="ans">${esc(reveal)}</div>
+    ${cfg.ai && ctx ? '<p class="why-ai loading">Working out where it went wrong…</p>' : ''}
+    ${ctx?.whyNot?.length ? `<div class="lbl">${ctx.whyNot.length > 1 ? 'Why not the others' : 'Why not that one'}</div><ul class="whynot">${ctx.whyNot.map(w => `<li class="${w.picked ? 'picked' : ''}"><b>${w.picked ? 'Your pick: ' : ''}${esc(w.t)}</b><span>${esc(w.m || 'A distractor, not a card in this set')}</span></li>`).join('')}</ul>` : ''}
+    <p class="hook" ${c.hook ? '' : 'hidden'}>${esc(c.hook || '')}</p>
+    <div class="row">${cfg.ai ? `<button class="btn ghost" id="hookBtn" style="margin-right:auto">${c.hook ? '↻ New hook' : '✨ Memory hook'}</button>` : ''}${flag ? '<button class="btn ghost" id="flag" title="The AI wrote a wrong or confusing question — remove it and don\'t count this answer">⚑ Bad question</button>' : ''}${typed ? '<button class="btn ghost" id="override">I was right</button>' : ''}<button class="btn primary" id="cont">Continue <kbd>↵</kbd></button></div></div>`;
+  onEnter = next;
+  $('#cont').onclick = next;
+  if (flag) $('#flag').onclick = () => unflag(c, prev, flag);
+  if (typed) $('#override').onclick = () => { Object.assign(c, prev); cur.results.pop(); grade(c, true); next() };
+  if ($('#hookBtn')) $('#hookBtn').onclick = () => memoryHook(c, fb.querySelector('.hook'), $('#hookBtn'));
+  if (cfg.ai && ctx) explainWhy(c, ctx, reveal, fb.querySelector('.why-ai'));
+}
+function unflag(c, prev, flag) { Object.assign(c, prev); cur.results.pop(); flag(); save(); updateProgress(); next() }
+function roundSummary() {
+  const { n, m } = stats(cur.set), right = cur.results.filter(r => r.r === true).length;
+  stage.innerHTML = `<div class="q">
+    <div class="q-label">Round ${cur.roundNo} complete · ${right}/${cur.results.length} correct</div>
+    <div class="big">${m} <span class="sub" style="font-weight:500">/ ${n} mastered</span></div>
+    <ul class="res">${cur.results.map(({ c, r }) => `<li class="${r === true ? 'ok' : r ? 'mid' : 'no'}"><span>${r === true ? '✓' : r ? '◐' : '✗'}</span><b>${esc(view(c).t)}</b><em>${esc(view(c).d)}</em></li>`).join('')}</ul>
+    <div class="row end"><button class="btn primary" id="cont">Next round <kbd>↵</kbd></button></div></div>`;
+  onEnter = nextRound;
+  $('#cont').onclick = nextRound;
+}
+function finishSet() {
+  const n = cur.set.cards.length;
+  stage.innerHTML = `<div class="q done-card"><div class="check">✓</div><h2>All ${n} terms mastered.</h2>
+    <p class="sub" style="margin-top:8px">Took ${cur.roundNo} round${cur.roundNo === 1 ? '' : 's'} this session. Come back tomorrow and run it again to make it permanent.</p>
+    <div class="row"><button class="btn" id="again">Study again from scratch</button><button class="btn primary" id="back">Back to sets</button></div></div>`;
+  $('#again').onclick = () => { cur.set.cards.forEach(c => { c.lv = 0; c.miss = 0 }); save(); startLearn(cur.set) };
+  $('#back').onclick = renderHome;
+  onEnter = renderHome;
+  confetti();
+}
+function confetti() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const c = document.createElement('canvas'), x = c.getContext('2d'); c.className = 'confetti';
+  c.width = innerWidth; c.height = innerHeight; document.body.append(c);
+  const cols = ['#5eead4', '#fbbf24', '#fb7185', '#a78bfa', '#eceef3'];
+  const ps = Array.from({ length: 160 }, () => ({ x: innerWidth / 2, y: innerHeight / 3, vx: (Math.random() - .5) * 16, vy: -Math.random() * 15 - 4, s: Math.random() * 6 + 5, c: cols[Math.random() * 5 | 0], r: Math.random() * 6 }));
+  let t = 0;
+  (function f() {
+    x.clearRect(0, 0, c.width, c.height);
+    for (const p of ps) { p.vy += .35; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += .12; x.save(); x.translate(p.x, p.y); x.rotate(p.r); x.fillStyle = p.c; x.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); x.restore() }
+    ++t < 220 ? requestAnimationFrame(f) : c.remove();
+  })();
+}
+document.addEventListener('keydown', e => {
+  if ($('#learn').hidden || e.repeat || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('dialog[open]')) return;
+  const typing = /^(INPUT|TEXTAREA)$/.test(e.target.tagName) && !e.target.disabled;
+  if (e.key === 'Enter' && onEnter && !typing) { e.preventDefault(); const f = onEnter; onEnter = null; f() }
+  else if (keyPick && !typing && /^[1-9]$/.test(e.key)) keyPick(+e.key - 1);
+  else if (keyPick && !typing && cur.type === 'tf' && /^[tf]$/i.test(e.key)) keyPick(e.key.toLowerCase() === 't' ? 0 : 1);
+});
+
+/* ---------- settings ---------- */
+const syncModel = () => {
+  const i = MODELS.indexOf(cfg.model);
+  $('#model').value = i; $('#modelHint').textContent = MODEL_HINT[cfg.model];
+  [...$('#modelTicks').children].forEach((s, j) => s.classList.toggle('on', j === i));
+};
+const setModel = i => { cfg.model = MODELS[i]; save(); syncModel(); $('#aiStatus').textContent = '' };
+$('#model').oninput = e => setModel(+e.target.value);
+[...$('#modelTicks').children].forEach((s, i) => s.onclick = () => setModel(i));
+$('#provider').innerHTML = Object.entries(PROVIDERS).map(([id, p]) => `<option value="${id}">${p.name} — ${p.tag}</option>`).join('');
+// Show only the fields the chosen provider needs. The key itself stays in the app; the page only learns whether one is saved.
+async function syncAI() {
+  const p = prov(), id = cfg.provider;
+  $('#aiOpts').hidden = !cfg.ai;
+  $('#provider').value = id;
+  $('#provHint').innerHTML = `<span class="tag ${p.cls}">${p.tag}</span> ${p.hint}`;
+  $('#keyRow').hidden = p.noKey;
+  $('#keyLink').hidden = !p.key; $('#keyLink').href = p.key || ''; $('#keyLink').textContent = p.cls === 'free' ? 'Get a free key ↗' : 'Get a key ↗';
+  $('#baseRow').hidden = id !== 'custom' && !(p.noKey && !p.tier); // custom + local servers, whose port can differ
+  $('#base').value = baseFor();
+  $('#tierRow').hidden = !p.tier; $('#modelRow').hidden = !!p.tier;
+  $('#modelId').value = modelFor(); $('#modelList').innerHTML = '';
+  $('#aiStatus').textContent = ''; syncModel();
+  const s = await fetch('/ai/status?provider=' + id).then(r => r.json()).catch(() => ({}));
+  if (id !== cfg.provider) return;
+  $('#apiKey').value = ''; $('#apiKey').placeholder = s.key ? 'Saved on this Mac ✓ (paste a new one to replace it)' : p.optKey ? 'Optional' : 'Paste your key';
+  if (!p.tier && cfg.ai) loadModels();
+}
+// Fills the model list from the server; picks a model when none is set or the default no longer exists.
+async function loadModels() {
+  const id = cfg.provider, p = prov();
+  const r = await fetch('/ai/models', { method: 'POST', body: JSON.stringify({ provider: id, base: baseFor() }) }).then(r => r.json()).catch(() => ({}));
+  if (id !== cfg.provider || !r.models?.length) return;
+  $('#modelList').innerHTML = r.models.map(m => `<option value="${esc(m)}">`).join('');
+  if (!r.models.includes(modelFor())) {
+    cfg.models[id] = r.models.find(m => p.pick ? p.pick.test(m) : !/embed|tts|whisper|audio|image|guard|moderation|transcribe|realtime|dall-e/i.test(m)) || r.models[0];
+    save(); $('#modelId').value = cfg.models[id];
+  }
+}
+function openSettings(first) {
+  $('#setTitle').textContent = first ? 'Welcome to Drill' : 'Settings'; $('#welcome').hidden = !first;
+  $('#aiOn').checked = cfg.ai; syncAI(); $('#settings').showModal();
+}
+$('#openSettings').onclick = () => openSettings(false);
+$('#aiOn').onchange = e => { cfg.ai = e.target.checked; save(); syncAI() };
+$('#provider').onchange = e => { cfg.provider = e.target.value; save(); syncAI() };
+$('#apiKey').onchange = async e => {
+  const key = e.target.value.trim(); if (!key) return;
+  const r = await fetch('/ai/key', { method: 'POST', body: JSON.stringify({ provider: cfg.provider, key }) }).then(r => r.json()).catch(e => ({ error: aiErr(e) }));
+  if (r.error) { $('#aiStatus').textContent = r.error; $('#aiStatus').style.color = 'var(--red)'; return }
+  syncAI();
+};
+$('#base').onchange = e => { cfg.bases[cfg.provider] = e.target.value.trim(); save(); loadModels() };
+$('#modelId').onchange = e => { cfg.models[cfg.provider] = e.target.value.trim(); save() };
+// Export all sets (with progress and AI optimization) to one file; Import takes that file or a single Drill set file.
+$('#exportAll').onclick = () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify({ drill: 1, sets })], { type: 'application/json' }));
+  a.download = `Drill sets ${new Date().toISOString().slice(0, 10)}.json`; a.click();
+};
+$('#importFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return; e.target.value = '';
+  let j; try { j = JSON.parse(await f.text()) } catch { j = null }
+  const add = (Array.isArray(j?.sets) ? j.sets : [j]).filter(s => Array.isArray(s?.cards)).map((s, i) => ({ // a trust boundary: rebuild every field
+    id: Date.now() + i, name: String(s.name || 'Imported set').slice(0, 200),
+    cards: s.cards.filter(c => c?.t && c?.d).map(c => {
+      const t = String(c.t), d = String(c.d), ai = c.ai && typeof c.ai === 'object' && cleanAI(c.ai, { t, d });
+      return { t, d, lv: Math.min(GOAL, Math.max(0, c.lv | 0)), miss: Math.max(0, c.miss | 0), ...(c.hook && { hook: String(c.hook).slice(0, 500) }), ...(ai && { ai }) };
+    }),
+  })).filter(s => s.cards.length);
+  if (!add.length) return alert("That file isn't a Drill export or set file.");
+  sets.unshift(...add); save(); $('#settings').close(); renderHome();
+  alert(`Imported ${add.length} set${add.length > 1 ? 's' : ''}.`);
+};
+$('#testAi').onclick = async () => {
+  const st = $('#aiStatus'); st.textContent = 'Connecting…'; st.style.color = '';
+  const t0 = performance.now();
+  try {
+    await aiStream('Reply with exactly: ok');
+    st.textContent = `Connected · ${aiName()} replied in ${((performance.now() - t0) / 1000).toFixed(1)}s`; st.style.color = 'var(--green)';
+  } catch (e) { st.textContent = aiErr(e); st.style.color = 'var(--red)' }
+};
+
+if (location.hash === '#test') {
+  const A = console.assert;
+  A(check('mitochondria', 'Mitochondria') === 2, 'exact');
+  A(check('mitocondria', 'Mitochondria') === 1, 'typo');
+  A(check('ribosome', 'Mitochondria') === 0, 'wrong');
+  A(check('the nucleus', 'Nucleus') === 2, 'article');
+  A(check('ATP', 'ATP; adenosine triphosphate') === 2, 'alternate');
+  A(check('atp', 'ADP') === 0, 'short answers must be exact');
+  A(check('unsex me here', '1.5 · “Unsex me here”') === 2 && check('1066', '1066') === 2, 'section label optional');
+  A(parseCardLine('1. **ATP** :: Energy currency of the cell').t === 'ATP', 'card line');
+  A(parseCardLine('Here are your cards:') === null, 'chatter ignored');
+  A(frags('Shows his guilt; foreshadows the ending. Uses dramatic irony').length === 3, 'frags');
+  A(chunkNotes('Cells are small. '.repeat(800)).every(p => p.length <= 6020), 'chunks bounded');
+  const was = { ...cfg, models: { ...cfg.models } };
+  cfg.provider = 'claude';
+  cfg.model = 'auto'; A(modelFor('build') === 'sonnet' && modelFor('study') === 'haiku', 'auto routes by task');
+  cfg.model = 'opus'; A(modelFor('build') === 'opus' && modelFor('study') === 'opus', 'fixed model for every task');
+  cfg.provider = 'gemini'; cfg.models = {}; A(modelFor('build') === 'gemini-flash-latest' && baseFor().includes('googleapis'), 'preset model + base');
+  cfg.models.gemini = 'gemini-x'; A(modelFor() === 'gemini-x' && aiName() === 'gemini-x', 'chosen model wins');
+  Object.assign(cfg, was);
+  A(makeCloze('Organelle that produces ATP through cellular respiration').picks.length === 1, 'cloze');
+  A(isLong('Site of protein synthesis') === false && isLong('Membrane network studded with ribosomes; makes proteins for export'), 'isLong');
+  A(grounded('Reversal of grammatical structures', 'chiasmus: reversal of grammatical structures') && !grounded('A term used in the text, but no definition is given', 'star anaphora repetition'), 'fix keeps only grounded cards');
+  const mv = view({ t: '1. (Tier 1) 1.7 · Vaulting ambition', d: 'Macbeth admits his only motive is ambition. [Ambition · Guilt]' });
+  A(mv.t === '1.7 · Vaulting ambition' && mv.d === 'Macbeth admits his only motive is ambition.' && mv.tags.join() === 'Ambition,Guilt', 'view cleans labels and splits tags');
+  A(view({ t: '3.14', d: 'pi' }).t === '3.14' && view({ t: '1066', d: 'x' }).t === '1066', 'view keeps numeric terms');
+  const sc = [{ t: 'A', d: 'cells make proteins in ribosomes' }, { t: 'B', d: 'planets orbit stars' }, { t: 'C', d: 'ribosomes build proteins' }];
+  A(similar(sc[0], sc)[0] === sc[2], 'similar ranks shared words first');
+  A(guessKind({ t: 'Pythagorean theorem', d: 'a² + b² = c²' }, 'vocab') === 'formula' && guessKind({ t: 'Battle of Hastings', d: '1066' }, 'vocab') === 'fact', 'kind rules');
+  A(guessKind({ t: 'Green light', d: 'Symbolizes longing; represents the dream; ties to Daisy' }, 'quote') === 'list' && guessKind({ t: 'X', d: 'short meaning' }, 'nonsense') === 'vocab', 'kind fallback');
+  A(makeCloze('Energy equals mass times c squared', 'mass').picks[0].core === 'mass', 'cloze uses AI key');
+  const js = '{"drill":1,"name":"T","cards":[{"t":"Mitochondria","d":"Makes ATP","ai":{"kind":"vocab","tru":["Mitochondria make ATP"],"fal":["Mitochondria make DNA"],"wrong":["Ribosome","Mitochondria"],"notes":{"Ribosome":"Builds proteins"},"hook":"Mighty Kondria"}}]}';
+  A(parse(js).length === 1 && parseJSONSet(js).name === 'T' && parseJSONSet('Mitochondria\tMakes ATP') === null, 'Drill JSON import');
+  const ca = cleanAI(parseJSONSet(js).cards[0].ai, { t: 'Mitochondria', d: 'Makes ATP' });
+  A(ca.kind === 'vocab' && ca.wrong.join() === 'Ribosome' && ca.notes.Ribosome === 'Builds proteins' && ca.hook === 'Mighty Kondria' && cleanAI({ kind: 'evil' }, { t: 'X', d: 'y' }).kind === 'vocab', 'cleanAI sanitizes');
+  console.log('Drill self-check done');
+}
+renderHome();
+// First launch: ask about AI once, defaulting to Claude Code if it's installed, else the free Gemini tier.
+if (firstRun) fetch('/ai/status?provider=claude').then(r => r.json()).then(s => { if (!s.cli) { cfg.provider = 'gemini'; save() } })
+  .catch(() => {}).finally(() => openSettings(true));
+</script>
+</body>
+</html>
