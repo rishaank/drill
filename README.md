@@ -4,6 +4,8 @@ A flashcard app for Mac with a "learn" mode that climbs each card from multiple 
 
 Works fully offline without AI. Your sets stay on your Mac.
 
+![Drill explaining a missed multiple-choice question, with "why not the others" notes and a memory hook](screenshot.png)
+
 ## Install
 
 Needs macOS 13.3 (Ventura) or later, on Apple Silicon or Intel.

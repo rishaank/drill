@@ -399,10 +399,6 @@ let sets = load('drill.sets', null) || [{
     ['Rough ER', 'Membrane network studded with ribosomes; makes proteins for export'],
   ].map(([t, d]) => ({ t, d, lv: 0, miss: 0 }))
 }];
-// "Start Drill.command" opens ?ai=claude once Claude is reachable: switch AI on.
-if (new URLSearchParams(location.search).get('ai')) {
-  cfg.ai = true; history.replaceState(null, '', location.pathname + location.hash);
-}
 if (!MODELS.includes(cfg.model)) cfg.model = 'auto'; // also replaces old Ollama model names
 if (!PROVIDERS[cfg.provider]) cfg.provider = 'claude';
 cfg.models ??= {}; cfg.bases ??= {};
