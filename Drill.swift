@@ -1,4 +1,4 @@
-// Drill for Mac: one window that shows index.html, plus a bridge that sends its AI requests to the provider picked in Settings.
+// Drill for Mac: one window (native sidebar + toolbar around index.html), plus a bridge that sends its AI requests to the provider picked in Settings.
 // The page talks to the bridge over the drill:// scheme:
 //   GET  /ai/status?provider=x          → {cli, key}          is Claude Code installed / is a key saved for x
 //   POST /ai/key     {provider, key}    → {ok}                keys stay in this file's keys.json, never sent back to the page
@@ -7,6 +7,8 @@
 // Build with build.sh.
 import Cocoa
 import WebKit
+import SwiftUI
+import UniformTypeIdentifiers
 
 let MODELS = ["haiku": "claude-haiku-5-5", "sonnet": "claude-sonnet-5-5", "opus": "claude-opus-5-5"]
 let SYSTEM = "You are the study assistant inside Drill, a flashcard app. Follow the request exactly and output only what it asks for, as plain text with no Markdown (Drill shows text as-is)."
@@ -221,16 +223,106 @@ func apiError(_ text: String) -> String? {
     }
 }
 
-@MainActor final class App: NSObject, NSApplicationDelegate, WKUIDelegate, WKNavigationDelegate, WKDownloadDelegate, WKScriptMessageHandler {
+// The page posts what it shows ({"state": …}); the sidebar, toolbar, window title and menus mirror it,
+// and send commands back with drillCmd(cmd, arg).
+struct Deck: Decodable, Identifiable, Hashable { let id: Int; let name: String; let n: Int; let m: Int; let p: Double }  // p: share of stages climbed
+struct PageState: Decodable {
+    var sets: [Deck] = []
+    var view = "home"         // home | edit | learn
+    var setId: Int?           // the set on screen
+    var title = "Drill"
+    var subtitle = ""
+    var answerWith = "term"
+    var ai = false
+    var can: [String] = []    // study buttons on screen: primary, dunno, hook, override, flag
+}
+// cmd: export | sheet (kind) | size (h) | close (sets: storage changed, start: new set to study) | haptic
+struct Message: Decodable { var state: PageState?; var cmd: String?; var kind: String?; var h: Double?; var sets: Bool?; var start: Int? }
+
+@MainActor final class Model: ObservableObject {
+    @Published var state = PageState()
+    @Published var selected: Int? = 0  // 0 = All Sets
+    var run: (String, Any?) -> Void = { _, _ in }
+}
+
+// Drill's teal: bright on dark, deep enough for white text on light.
+let teal = NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    ? NSColor(srgbRed: 0.369, green: 0.918, blue: 0.831, alpha: 1) : NSColor(srgbRed: 0.059, green: 0.463, blue: 0.431, alpha: 1) }
+
+struct Sidebar: View {
+    @ObservedObject var model: Model
+    var body: some View {
+        List(selection: Binding(get: { model.selected }, set: { id in
+            guard let id, id != model.selected else { return }
+            model.selected = id
+            model.run(id == 0 ? "home" : "learn", id == 0 ? nil : id)
+        })) {
+            Label("All Sets", systemImage: "square.grid.2x2").tag(0)
+            Section("Sets") {
+                ForEach(model.state.sets) { s in row(s).tag(s.id).contextMenu { menu(s) } }
+            }
+        }
+        .listStyle(.sidebar)
+        .tint(Color(nsColor: teal))
+        .onDeleteCommand { if let id = model.selected, id != 0 { model.run("del", id) } }
+    }
+    func row(_ s: Deck) -> some View {
+        let p = s.p
+        return Label {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(s.name).lineLimit(1)
+                Text("\(s.n) terms · \(Int((p * 100).rounded()))% learned").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+        } icon: {
+            ZStack {  // progress ring
+                Circle().stroke(.quaternary, lineWidth: 2.5)
+                Circle().trim(from: 0, to: p).stroke(Color(nsColor: teal), style: StrokeStyle(lineWidth: 2.5, lineCap: .round)).rotationEffect(.degrees(-90))
+            }.frame(width: 14, height: 14)
+        }.help(s.name)
+    }
+    @ViewBuilder func menu(_ s: Deck) -> some View {
+        Button("Study") { model.run("learn", s.id) }
+        Button("Edit Set") { model.run("edit", s.id) }
+        if model.state.ai { Button("Optimize with AI") { model.run("opt", s.id) } }
+        Divider()
+        Button("Reset Progress") { model.run("reset", s.id) }
+        Button("Delete Set") { model.run("del", s.id) }
+    }
+}
+
+// Lays the page out under the toolbar. On macOS 26+ it scrolls beneath the glass; older systems keep it below the toolbar.
+final class WebPane: NSViewController {
+    let web: WKWebView
+    init(_ web: WKWebView) { self.web = web; super.init(nibName: nil, bundle: nil) }
+    required init?(coder: NSCoder) { fatalError() }
+    override func loadView() { view = NSView(); view.addSubview(web) }
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        let top = view.safeAreaInsets.top
+        if #available(macOS 26, *) {
+            web.frame = view.bounds
+            web.obscuredContentInsets = NSEdgeInsets(top: top, left: 0, bottom: 0, right: 0)
+        } else {
+            web.frame = NSRect(x: 0, y: 0, width: view.bounds.width, height: view.bounds.height - top)
+        }
+    }
+}
+
+@MainActor final class App: NSObject, NSApplicationDelegate, NSToolbarDelegate, NSMenuItemValidation, NSToolbarItemValidation,
+                            WKUIDelegate, WKNavigationDelegate, WKScriptMessageHandler {
     var window: NSWindow!
     var web: WKWebView!
     let bridge = Bridge()
+    let model = Model()
+    static let modes = ["term", "def", "mix"]
+    let answer = NSSegmentedControl(labels: ["Term", "Definition", "Both"], trackingMode: .selectOne, target: nil, action: nil)
+    var answerItem: NSToolbarItem?
+    var sheet: NSWindow?  // New Set, Edit Set and Settings: a real sheet with its own copy of the page in #sheet= mode
 
-    func applicationDidFinishLaunching(_ n: Notification) {
-        signal(SIGPIPE, SIG_IGN)  // a CLI that dies early must fail the request, not crash the app
-        NSApp.mainMenu = menu()
+    func makeWeb() -> WKWebView {
         let conf = WKWebViewConfiguration()
         conf.setURLSchemeHandler(bridge, forURLScheme: "drill")
+        conf.userContentController.add(self, name: "drill")
         if env["DRILL_DEBUG"] != nil {  // DRILL_DEBUG=1: page console → stdout; DRILL_EVAL runs JS after load (used by the self-test)
             conf.userContentController.add(self, name: "log")
             conf.userContentController.addUserScript(WKUserScript(source: """
@@ -238,16 +330,40 @@ func apiError(_ text: String) -> String? {
                 addEventListener('error', e => webkit.messageHandlers.log.postMessage('error: ' + e.message + ' line ' + e.lineno));
                 """, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         }
-        web = WKWebView(frame: .zero, configuration: conf)
-        web.uiDelegate = self; web.navigationDelegate = self
-        web.setValue(false, forKey: "drawsBackground")  // the window's dark color shows while the page loads: no white flash
-        if #available(macOS 13.3, *) { web.isInspectable = true }
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 800), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+        let w = WKWebView(frame: .zero, configuration: conf)
+        w.uiDelegate = self; w.navigationDelegate = self
+        w.setValue(false, forKey: "drawsBackground")  // the window's own color (or the sheet's glass) shows through
+        w.isInspectable = true
+        return w
+    }
+
+    func applicationDidFinishLaunching(_ n: Notification) {
+        signal(SIGPIPE, SIG_IGN)  // a CLI that dies early must fail the request, not crash the app
+        NSApp.mainMenu = menu()
+        web = makeWeb()
+        let zoom = UserDefaults.standard.double(forKey: "zoom")
+        if zoom > 0 { web.pageZoom = zoom }
+        model.run = { [weak self] cmd, arg in self?.page(cmd, arg) }
+
+        let split = NSSplitViewController()
+        let list = NSHostingController(rootView: Sidebar(model: model))
+        list.sizingOptions = []  // the window sizes the sidebar, not the other way round
+        let side = NSSplitViewItem(sidebarWithViewController: list)
+        side.minimumThickness = 190; side.maximumThickness = 340
+        split.addSplitViewItem(side)
+        split.addSplitViewItem(NSSplitViewItem(viewController: WebPane(web)))
+        split.splitView.autosaveName = "Drill.sidebar"
+
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 780),
+                          styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+        window.contentViewController = split
+        window.setContentSize(NSSize(width: 1120, height: 780))
         window.title = "Drill"
-        window.appearance = NSAppearance(named: .darkAqua)
-        window.backgroundColor = NSColor(srgbRed: 0.047, green: 0.051, blue: 0.063, alpha: 1)
-        window.minSize = NSSize(width: 420, height: 480)
-        window.contentView = web
+        let toolbar = NSToolbar(identifier: "Drill")
+        toolbar.delegate = self; toolbar.displayMode = .iconOnly
+        window.toolbar = toolbar
+        window.toolbarStyle = .unified
+        window.minSize = NSSize(width: 640, height: 480)
         window.center()
         window.setFrameAutosaveName("Drill")
         window.makeKeyAndOrderFront(nil)
@@ -255,39 +371,205 @@ func apiError(_ text: String) -> String? {
         NSApp.activate(ignoringOtherApps: true)
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ app: NSApplication) -> Bool { true }
+    func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
+
+    // MARK: page ⇄ app
+    func page(_ cmd: String, _ arg: Any? = nil) {
+        web.evaluateJavaScript("drillCmd(...\(jsonString([cmd, arg ?? NSNull()])))")
+    }
+    func userContentController(_ c: WKUserContentController, didReceive m: WKScriptMessage) {
+        guard m.name == "drill" else { print(m.body, terminator: "\n"); fflush(stdout); return }
+        guard let msg = try? JSONDecoder().decode(Message.self, from: Data((m.body as? String ?? "").utf8)) else {
+            if env["DRILL_DEBUG"] != nil { print("error: page message didn't decode: \(m.body)") }  // fails test.sh
+            return
+        }
+        switch msg.cmd {
+        case "export": exportSets(nil)
+        case "haptic": NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
+        case "sheet": openSheet(msg.kind ?? "settings")
+        case "size":  // the sheet's page reports its height: fit it (up to the window), and show it once it has a size
+            guard let sh = sheet, let h = msg.h else { break }
+            sh.setContentSize(NSSize(width: sh.contentLayoutRect.width, height: min(h, window.contentLayoutRect.height - 40)))
+            if sh.sheetParent == nil { window.beginSheet(sh) }
+        case "close":
+            guard let sh = sheet else { break }
+            window.endSheet(sh); sheet = nil
+            page("reload", ["sets": msg.sets ?? false, "start": msg.start.map { $0 as Any } ?? NSNull()])
+        default: break
+        }
+        guard m.webView === web, let s = msg.state else { return }
+        model.state = s
+        let sel = s.view == "home" ? 0 : s.setId
+        if model.selected != sel { model.selected = sel }
+        window.title = s.title
+        window.subtitle = s.subtitle
+        answer.selectedSegment = App.modes.firstIndex(of: s.answerWith) ?? 0
+        answer.isEnabled = s.view == "learn"
+        if #available(macOS 15, *) { answerItem?.isHidden = s.view != "learn" }
+        window.toolbar?.validateVisibleItems()
+    }
+
+    func openSheet(_ kind: String) {
+        guard sheet == nil else { return }
+        let w = makeWeb()
+        w.pageZoom = web.pageZoom
+        let width: CGFloat = kind == "settings" || kind == "welcome" ? 540 : 760
+        let sh = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: 400), styleMask: [.titled, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+        sh.contentMinSize = NSSize(width: width, height: 200)
+        if #available(macOS 26, *) {  // Liquid Glass behind the whole sheet
+            let glass = NSGlassEffectView()
+            glass.contentView = w
+            sh.contentView = glass
+            sh.isOpaque = false; sh.backgroundColor = .clear
+        } else {
+            let v = NSVisualEffectView()
+            v.material = .sheet; v.blendingMode = .behindWindow; v.state = .active
+            w.autoresizingMask = [.width, .height]; w.frame = v.bounds
+            v.addSubview(w)
+            sh.contentView = v
+        }
+        sheet = sh
+        w.load(URLRequest(url: URL(string: "drill://app/index.html#sheet=\(kind)")!))  // shown on its first "size" message
+    }
+
+    // MARK: toolbar
+    let answerID = NSToolbarItem.Identifier("answer"), editID = NSToolbarItem.Identifier("edit"), newID = NSToolbarItem.Identifier("new")
+    func toolbarDefaultItemIdentifiers(_ t: NSToolbar) -> [NSToolbarItem.Identifier] { [.toggleSidebar, .sidebarTrackingSeparator, .flexibleSpace, answerID, editID, newID] }
+    func toolbarAllowedItemIdentifiers(_ t: NSToolbar) -> [NSToolbarItem.Identifier] { toolbarDefaultItemIdentifiers(t) + [.space] }
+    func toolbar(_ t: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier, willBeInsertedIntoToolbar: Bool) -> NSToolbarItem? {
+        let item = NSToolbarItem(itemIdentifier: id)
+        func button(_ label: String, _ symbol: String, _ action: Selector, _ tip: String) {
+            item.label = label; item.toolTip = tip; item.isBordered = true
+            item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
+            item.target = self; item.action = action
+        }
+        switch id {
+        case answerID:
+            answer.target = self; answer.action = #selector(answerPicked(_:))
+            item.view = answer; item.label = "Answer With"; item.toolTip = "Answer with the term, the definition, or a mix of both"
+            answerItem = item
+        case editID: button("Edit Set", "square.and.pencil", #selector(editSet(_:)), "Edit this set's cards")
+        case newID: button("New Set", "plus", #selector(newSet(_:)), "Make a new set")
+        default: return nil
+        }
+        return item
+    }
+
+    // MARK: actions (menus, toolbar, sidebar)
+    @objc func newSet(_ s: Any?) { page("new") }
+    @objc func studySet(_ s: Any?) { page("learn", model.state.setId) }
+    @objc func editSet(_ s: Any?) { page("edit", model.state.setId) }
+    @objc func optimizeSet(_ s: Any?) { page("opt", model.state.setId) }
+    @objc func resetSet(_ s: Any?) { page("reset", model.state.setId) }
+    @objc func deleteSet(_ s: Any?) { page("del", model.state.setId) }
+    @objc func showSettings(_ s: Any?) { page("settings") }
+    @objc func answerPicked(_ s: NSSegmentedControl) { page("answer", App.modes[s.selectedSegment]) }
+    @objc func answerMenu(_ s: NSMenuItem) { page("answer", App.modes[s.tag]) }
+    @objc func press(_ s: NSMenuItem) { page("press", s.representedObject) }
+    @objc func zoom(_ s: NSMenuItem) {
+        web.pageZoom = s.tag == 0 ? 1 : min(2, max(0.7, web.pageZoom + Double(s.tag) / 10))
+        UserDefaults.standard.set(web.pageZoom, forKey: "zoom")
+    }
+    @objc func openLink(_ s: NSMenuItem) { NSWorkspace.shared.open(URL(string: s.representedObject as! String)!) }
+    @objc func importSets(_ s: Any?) {
+        let p = NSOpenPanel(); p.allowedContentTypes = [.json]; p.message = "Choose a Drill export or set file"
+        p.beginSheetModal(for: window) { r in
+            guard r == .OK, let u = p.url else { return }
+            guard let text = try? String(contentsOf: u, encoding: .utf8) else { return self.alert("Couldn't read \(u.lastPathComponent).") }
+            self.page("import", text)
+        }
+    }
+    @objc func exportSets(_ s: Any?) {
+        web.callAsyncJavaScript("return exportJSON()", arguments: [:], in: nil, in: .page) { r in
+            guard case .success(let v) = r, let text = v as? String else { return }
+            let p = NSSavePanel(); p.allowedContentTypes = [.json]
+            p.nameFieldStringValue = "Drill sets \(ISO8601DateFormatter.string(from: Date(), timeZone: .current, formatOptions: .withFullDate)).json"
+            p.beginSheetModal(for: self.window.attachedSheet ?? self.window) { r in
+                guard r == .OK, let u = p.url else { return }
+                do { try text.write(to: u, atomically: true, encoding: .utf8) } catch { self.alert("Couldn't save: \(error.localizedDescription)") }
+            }
+        }
+    }
+    func alert(_ text: String) { let a = NSAlert(); a.messageText = text; a.beginSheetModal(for: window.attachedSheet ?? window) }
+
+    func enabled(_ action: Selector?, _ rep: Any? = nil) -> Bool {
+        let s = model.state
+        let behindSheet: [Selector] = [#selector(newSet(_:)), #selector(studySet(_:)), #selector(editSet(_:)), #selector(optimizeSet(_:)), #selector(resetSet(_:)),
+                                       #selector(deleteSet(_:)), #selector(showSettings(_:)), #selector(answerMenu(_:)), #selector(press(_:)), #selector(importSets(_:))]
+        if sheet != nil, let a = action, behindSheet.contains(a) { return false }  // the main window waits while a sheet is up
+        switch action {
+        case #selector(studySet(_:)), #selector(editSet(_:)), #selector(resetSet(_:)), #selector(deleteSet(_:)): return s.setId != nil
+        case #selector(optimizeSet(_:)): return s.setId != nil && s.ai
+        case #selector(press(_:)): return s.view == "learn" && s.can.contains(rep as? String ?? "")
+        default: return true
+        }
+    }
+    func validateMenuItem(_ m: NSMenuItem) -> Bool {
+        if m.action == #selector(answerMenu(_:)) { m.state = App.modes[m.tag] == model.state.answerWith ? .on : .off }
+        return enabled(m.action, m.representedObject)
+    }
+    func validateToolbarItem(_ i: NSToolbarItem) -> Bool { enabled(i.action) }
 
     func menu() -> NSMenu {
         let bar = NSMenu()
-        func item(_ title: String, _ action: Selector?, _ key: String = "", _ mods: NSEvent.ModifierFlags = .command) -> NSMenuItem {
-            let i = NSMenuItem(title: title, action: action, keyEquivalent: key); i.keyEquivalentModifierMask = mods; return i
+        func item(_ title: String, _ action: Selector?, _ key: String = "", _ mods: NSEvent.ModifierFlags = .command, tag: Int = 0, rep: Any? = nil) -> NSMenuItem {
+            let i = NSMenuItem(title: title, action: action, keyEquivalent: key)
+            i.keyEquivalentModifierMask = mods; i.tag = tag; i.representedObject = rep; return i
         }
-        func add(_ title: String, _ items: [NSMenuItem]) -> NSMenu {
-            let m = NSMenu(title: title), holder = NSMenuItem()
-            items.forEach(m.addItem); holder.submenu = m; bar.addItem(holder); return m
+        func sub(_ title: String, _ items: [NSMenuItem]) -> NSMenuItem {
+            let m = NSMenu(title: title), holder = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            items.forEach(m.addItem); holder.submenu = m; return holder
         }
+        func add(_ title: String, _ items: [NSMenuItem]) -> NSMenu { let h = sub(title, items); bar.addItem(h); return h.submenu! }
+        let services = sub("Services", [])
+        NSApp.servicesMenu = services.submenu
         _ = add("Drill", [item("About Drill", #selector(NSApplication.orderFrontStandardAboutPanel(_:))), .separator(),
-                          item("Hide Drill", #selector(NSApplication.hide(_:)), "h"), item("Quit Drill", #selector(NSApplication.terminate(_:)), "q")])
+                          item("Settings…", #selector(showSettings(_:)), ","), .separator(), services, .separator(),
+                          item("Hide Drill", #selector(NSApplication.hide(_:)), "h"),
+                          item("Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]),
+                          item("Show All", #selector(NSApplication.unhideAllApplications(_:))), .separator(),
+                          item("Quit Drill", #selector(NSApplication.terminate(_:)), "q")])
+        _ = add("File", [item("New Set", #selector(newSet(_:)), "n"), item("Import Sets…", #selector(importSets(_:)), "o"),
+                         item("Export All Sets…", #selector(exportSets(_:)), "e", [.command, .shift]), .separator(),
+                         item("Close", #selector(NSWindow.performClose(_:)), "w")])
         _ = add("Edit", [item("Undo", Selector(("undo:")), "z"), item("Redo", Selector(("redo:")), "z", [.command, .shift]), .separator(),
                          item("Cut", #selector(NSText.cut(_:)), "x"), item("Copy", #selector(NSText.copy(_:)), "c"),
-                         item("Paste", #selector(NSText.paste(_:)), "v"), item("Select All", #selector(NSText.selectAll(_:)), "a")])
-        _ = add("View", [item("Reload", #selector(WKWebView.reload(_:)), "r"), item("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control])])
+                         item("Paste", #selector(NSText.paste(_:)), "v"),
+                         item("Paste and Match Style", #selector(NSTextView.pasteAsPlainText(_:)), "v", [.command, .option, .shift]),
+                         item("Delete", #selector(NSText.delete(_:))), item("Select All", #selector(NSText.selectAll(_:)), "a")])
+        _ = add("Set", [item("Study", #selector(studySet(_:)), "l"), item("Edit Set", #selector(editSet(_:)), "e"),
+                        item("Optimize with AI", #selector(optimizeSet(_:))), .separator(),
+                        item("Reset Progress", #selector(resetSet(_:))), item("Delete Set", #selector(deleteSet(_:)))])
+        _ = add("Study", [sub("Answer With", [item("Term", #selector(answerMenu(_:)), "1", tag: 0), item("Definition", #selector(answerMenu(_:)), "2", tag: 1),
+                                              item("Both", #selector(answerMenu(_:)), "3", tag: 2)]), .separator(),
+                          item("Check or Continue", #selector(press(_:)), "\r", rep: "primary"),
+                          item("I Don't Know", #selector(press(_:)), rep: "dunno"), .separator(),
+                          item("Memory Hook", #selector(press(_:)), rep: "hook"),
+                          item("I Was Right", #selector(press(_:)), rep: "override"),
+                          item("Report Bad Question", #selector(press(_:)), rep: "flag")])
+        _ = add("View", [item("Show Sidebar", #selector(NSSplitViewController.toggleSidebar(_:)), "s", [.command, .control]), .separator(),
+                         item("Actual Size", #selector(zoom(_:)), "0", tag: 0), item("Zoom In", #selector(zoom(_:)), "=", tag: 1),
+                         item("Zoom Out", #selector(zoom(_:)), "-", tag: -1), .separator(),
+                         item("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control])])
         NSApp.windowsMenu = add("Window", [item("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m"), item("Zoom", #selector(NSWindow.performZoom(_:))),
-                                           item("Close", #selector(NSWindow.performClose(_:)), "w")])
+                                           .separator(), item("Bring All to Front", #selector(NSApplication.arrangeInFront(_:)))])
+        NSApp.helpMenu = add("Help", [item("Drill Help", #selector(openLink(_:)), "?", rep: "https://github.com/rishaank/drill#readme"),
+                                      item("Report a Problem", #selector(openLink(_:)), rep: "https://github.com/rishaank/drill/issues")])
         return bar
     }
 
     // WKWebView shows no alert(), confirm() or file picker on its own.
     func webView(_ w: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame f: WKFrameInfo, completionHandler: @escaping () -> Void) {
         let a = NSAlert(); a.messageText = message
-        a.beginSheetModal(for: window) { _ in completionHandler() }
+        a.beginSheetModal(for: w.window ?? window) { _ in completionHandler() }
     }
     func webView(_ w: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame f: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
         let a = NSAlert(); a.messageText = message; a.addButton(withTitle: "OK"); a.addButton(withTitle: "Cancel")
-        a.beginSheetModal(for: window) { completionHandler($0 == .alertFirstButtonReturn) }
+        a.beginSheetModal(for: w.window ?? window) { completionHandler($0 == .alertFirstButtonReturn) }
     }
     func webView(_ w: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters, initiatedByFrame f: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
         let p = NSOpenPanel(); p.allowsMultipleSelection = parameters.allowsMultipleSelection
-        p.beginSheetModal(for: window) { completionHandler($0 == .OK ? p.urls : nil) }
+        p.beginSheetModal(for: w.window ?? window) { completionHandler($0 == .OK ? p.urls : nil) }
     }
     // Links (key pages, install guides) open in the default browser, never inside Drill's window.
     func webView(_ w: WKWebView, createWebViewWith c: WKWebViewConfiguration, for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
@@ -295,24 +577,11 @@ func apiError(_ text: String) -> String? {
         return nil
     }
     func webView(_ w: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
-        if action.shouldPerformDownload { return decisionHandler(.download) }
         if let u = action.request.url, ["http", "https", "mailto"].contains(u.scheme ?? "") { NSWorkspace.shared.open(u); return decisionHandler(.cancel) }
         decisionHandler(.allow)
     }
-    // Export all sets: <a download> becomes a Save dialog.
-    func webView(_ w: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) { download.delegate = self }
-    func download(_ d: WKDownload, decideDestinationUsing r: URLResponse, suggestedFilename name: String, completionHandler: @escaping @MainActor (URL?) -> Void) {
-        let p = NSSavePanel(); p.nameFieldStringValue = name
-        p.beginSheetModal(for: window) { resp in
-            guard resp == .OK, let u = p.url else { return completionHandler(nil) }
-            try? FileManager.default.removeItem(at: u)  // the panel already asked about replacing; WKDownload won't overwrite
-            completionHandler(u)
-        }
-    }
-
-    func userContentController(_ c: WKUserContentController, didReceive m: WKScriptMessage) { print(m.body, terminator: "\n"); fflush(stdout) }
     func webView(_ w: WKWebView, didFinish nav: WKNavigation!) {
-        guard let js = env["DRILL_EVAL"] else { return }
+        guard w === web, let js = env["DRILL_EVAL"] else { return }
         w.callAsyncJavaScript(js, arguments: [:], in: nil, in: .page) { r in
             print("eval:", (try? r.get()).map { "\($0)" } ?? "\(r)"); fflush(stdout)
             if env["DRILL_QUIT"] != nil { NSApp.terminate(nil) }

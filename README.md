@@ -32,7 +32,7 @@ You only do steps 3–4 once.
 
 ## AI (optional)
 
-Turn it on in the welcome screen or in **Settings** (gear icon), then pick a provider:
+Turn it on in the welcome screen or in **Drill → Settings…** (⌘,), then pick a provider:
 
 | Provider | Tag | What you need |
 |---|---|---|
@@ -50,9 +50,9 @@ API keys are saved only on your Mac (`~/Library/Application Support/Drill/keys.j
 
 ## Moving your sets
 
-**Settings → Export all** saves every set, with your progress, to one file. **Import** loads it on another Mac. Import also accepts single Drill set files.
+**File → Export All Sets…** (⇧⌘E) saves every set, with your progress, to one file. **File → Import Sets…** (⌘O) loads it on another Mac. Import also accepts single Drill set files.
 
-If you use Claude, [`drill-set.skill`](drill-set.skill) is a Claude skill that turns notes, PDFs or word lists into a ready-to-study Drill set file you can paste into **New set**.
+If you use Claude, [`drill-set.skill`](drill-set.skill) is a Claude skill that turns notes, PDFs or word lists into a ready-to-study Drill set file you can paste into **File → New Set** (⌘N).
 
 ## Build it yourself
 
