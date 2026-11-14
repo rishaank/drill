@@ -61,4 +61,4 @@ xcode-select --install
 ./build.sh
 ```
 
-`build.sh` compiles `Drill.swift` (the window plus the AI bridge) around `index.html` (the whole app) and writes `dist/Drill.dmg` and `dist/Drill.zip`. To publish a release with GitHub's `gh` tool: `gh release create v1.0.0 dist/Drill.dmg dist/Drill.zip`.
+`build.sh` compiles `Drill.swift` (the window plus the AI bridge) around `index.html` (the whole app) and writes `dist/Drill.dmg` and `dist/Drill.zip`. `./test.sh` builds it and runs the app's self-checks in a throwaway copy that can't touch your sets. To publish a release with GitHub's `gh` tool: `gh release create v1.0.0 dist/Drill.dmg dist/Drill.zip`.
