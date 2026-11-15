@@ -4,7 +4,7 @@
 # Usage: ./build.sh [version]
 set -euo pipefail
 cd "$(dirname "$0")"
-VERSION=${1:-1.0.0}
+VERSION=${1:-2.0.0}
 # Staged outside the project: iCloud Drive re-adds file metadata to anything inside it, which breaks the code signature.
 B="${TMPDIR:-/tmp}/drill-build"
 APP="$B/Drill.app"
@@ -12,10 +12,10 @@ rm -rf "$B" dist
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$B/dmg" dist
 
 for arch in arm64 x86_64; do
-  swiftc -O -swift-version 5 -target "$arch-apple-macos13.3" -o "$B/Drill-$arch" Drill.swift
+  swiftc -O -swift-version 5 -target "$arch-apple-macos13.3" -o "$B/Drill-$arch" Sources/*.swift
 done
 lipo -create "$B/Drill-arm64" "$B/Drill-x86_64" -output "$APP/Contents/MacOS/Drill"
-cp index.html AppIcon.icns "$APP/Contents/Resources/"
+cp AppIcon.icns "$APP/Contents/Resources/"
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

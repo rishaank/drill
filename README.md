@@ -10,7 +10,7 @@ A **Schedule** tab plans your day: drag out focus blocks, the gaps become breaks
 
 ## Install
 
-Needs macOS 13.3 (Ventura) or later, on Apple Silicon or Intel.
+Needs macOS 13.3 (Ventura) or later, on Apple Silicon or Intel. On macOS 26 and later it uses Liquid Glass throughout. Updating from Drill 1.x brings your sets, streak and schedule over on first launch.
 
 ### Easiest: one line in Terminal (no security pop-ups)
 
@@ -63,4 +63,4 @@ xcode-select --install
 ./build.sh
 ```
 
-`build.sh` compiles `Drill.swift` (the window plus the AI bridge) around `index.html` (the whole app) and writes `dist/Drill.dmg` and `dist/Drill.zip`. `./test.sh` builds it and runs the app's self-checks in a throwaway copy that can't touch your sets. To publish a release with GitHub's `gh` tool: `gh release create v1.0.0 dist/Drill.dmg dist/Drill.zip`.
+Drill is a native SwiftUI app (`Sources/`), built with Apple's command line tools from macOS 26 or later (the Liquid Glass SDK); the app itself still runs on macOS 13.3 and up. `build.sh` compiles it for Apple Silicon and Intel and writes `dist/Drill.dmg` and `dist/Drill.zip`. `./test.sh` builds it and runs the app's self-checks in a throwaway copy that can't touch your sets. To publish a release with GitHub's `gh` tool: `gh release create v1.0.0 dist/Drill.dmg dist/Drill.zip`.
