@@ -12,11 +12,11 @@ if (location.hash.startsWith('#sheet=')) document.documentElement.classList.add(
 <style>
 :root{
   color-scheme:light dark; accent-color:var(--accent);
-  --bg:#f5f5f7; --surface:#fff; --surface2:#f1f1f4; --hover:#e9e9ee; --field:#fff; --btn:#fff; --group:rgba(255,255,255,.7);
+  --bg:#f5f5f7; --surface:#fff; --surface2:#f1f1f4; --hover:#e9e9ee; --field:#fff; --btn:rgba(255,255,255,.62); --group:rgba(255,255,255,.7);
   --line:rgba(0,0,0,.09); --line2:rgba(0,0,0,.2); --edge:transparent;
   --text:#1d1d1f; --muted:#6e6e73; --accent:#0f766e; --accent-ink:#fff;
   --amber:#b25000; --red:#d70015; --green:#1f8a3b;
-  --lift:0 1px 2px rgba(0,0,0,.05),0 6px 20px rgba(0,0,0,.06); --btn-shadow:0 .5px 1.5px rgba(0,0,0,.18);
+  --lift:0 1px 2px rgba(0,0,0,.05),0 6px 20px rgba(0,0,0,.06); --btn-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 1px 2.5px rgba(0,0,0,.12);
   --hero:#0b4f48; --hero-glow:#1a8c7f; --sheet:rgba(250,250,252,.82);
   --font:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
   --round:ui-rounded,'SF Pro Rounded',-apple-system,system-ui,sans-serif;
@@ -26,14 +26,14 @@ if (location.hash.startsWith('#sheet=')) document.documentElement.classList.add(
   --x:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.4' stroke-linecap='round'%3E%3Cpath d='M7 7l10 10M17 7L7 17'/%3E%3C/svg%3E");
 }
 @media(prefers-color-scheme:dark){:root{
-  --bg:#1c1c1e; --surface:#2a2a2d; --surface2:#353538; --hover:#3e3e42; --field:#1c1c1e; --btn:rgba(255,255,255,.1); --group:rgba(255,255,255,.06);
+  --bg:#1c1c1e; --surface:#2a2a2d; --surface2:#353538; --hover:#3e3e42; --field:#1c1c1e; --btn:rgba(255,255,255,.09); --group:rgba(255,255,255,.06);
   --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.17); --edge:rgba(255,255,255,.06);
   --text:#f5f5f7; --muted:#98989d; --accent:#5eead4; --accent-ink:#04201b;
   --amber:#fbbf24; --red:#ff6b7f; --green:#4ade80;
-  --lift:none; --btn-shadow:0 .5px 0 rgba(255,255,255,.06) inset;
+  --lift:none; --btn-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 1px 3px rgba(0,0,0,.35);
   --hero:#0a3632; --hero-glow:#14695f; --sheet:rgba(44,44,46,.8);
 }}
-:root{--tint:color-mix(in srgb,var(--accent) 11%,transparent); --ring:color-mix(in srgb,var(--accent) 45%,transparent)}
+:root{--track:color-mix(in srgb,var(--text) 11%,transparent); --press:color-mix(in srgb,var(--text) 7%,transparent); --tint:color-mix(in srgb,var(--accent) 11%,transparent); --ring:color-mix(in srgb,var(--accent) 45%,transparent)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font:14px/1.5 var(--font);min-height:100vh;-webkit-font-smoothing:antialiased;-webkit-user-select:none;cursor:default}
 /* like any Mac app: interface text isn't selectable, content is */
@@ -59,20 +59,22 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .logo i{width:28px;height:28px;border-radius:8px;background:var(--accent);display:grid;place-items:center;color:var(--accent-ink);font-style:normal;font-size:14px;font-weight:700}
 
 /* push buttons: capsules, like macOS 26 */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:30px;padding:5px 14px;border-radius:99px;background:var(--btn);box-shadow:var(--btn-shadow),0 0 0 .5px var(--line2);font-weight:500;font-size:13px;line-height:1.3;transition:filter .1s,background .15s,transform .1s;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:30px;padding:5px 14px;border-radius:99px;background:var(--btn);box-shadow:var(--btn-shadow),0 0 0 .5px var(--line2);font-weight:500;font-size:13px;line-height:1.3;-webkit-backdrop-filter:blur(14px) saturate(1.7);backdrop-filter:blur(14px) saturate(1.7);transition:filter .1s,background .15s,transform .1s,box-shadow .15s;white-space:nowrap}
+.btn:hover:not(:disabled){background-image:linear-gradient(var(--press),var(--press))}
 .btn:active:not(:disabled){filter:brightness(.92);transform:scale(.98)}
-.btn.primary{background:var(--accent);color:var(--accent-ink);box-shadow:none;font-weight:600;min-width:84px}
-.btn.ghost{background:none;box-shadow:none;color:var(--muted)}
-.btn.ghost:hover:not(:disabled){color:var(--text);background:var(--surface2)}
+.btn.primary{background:linear-gradient(180deg,color-mix(in srgb,var(--accent),#fff 16%),var(--accent));color:var(--accent-ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 1px 3px color-mix(in srgb,var(--accent) 45%,transparent);font-weight:600;min-width:84px}
+.btn.primary:hover:not(:disabled){background-image:linear-gradient(180deg,color-mix(in srgb,var(--accent),#fff 26%),color-mix(in srgb,var(--accent),#fff 8%))}
+.btn.ghost{background:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;color:var(--muted)}
+.btn.ghost:hover:not(:disabled){color:var(--text);background:var(--press)}
 .btn:disabled{opacity:.45}
 .btn svg{width:15px;height:15px}
 .btn .spark{color:var(--accent)}
 .icon{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--muted);transition:.15s}
-.icon:hover{background:var(--hover);color:var(--text)}
+.icon:hover{background:var(--press);color:var(--text)}
 .icon svg{width:16px;height:16px}
 
 /* progress rings: mastery everywhere */
-.ring .track{stroke:var(--surface2)}
+.ring .track{stroke:var(--track)}
 .ring .fill{stroke:var(--accent);transition:stroke-dasharray 1s cubic-bezier(.2,.8,.2,1)}
 
 /* home: one big way in, the week, then every set */
@@ -94,7 +96,7 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .streak span{color:var(--muted)}
 .days{display:flex;gap:12px;list-style:none}
 .days li{display:flex;flex-direction:column;align-items:center;gap:6px;font:500 11px var(--round);color:var(--muted)}
-.days i{width:24px;height:24px;border-radius:50%;background:var(--surface2);position:relative}
+.days i{width:24px;height:24px;border-radius:50%;background:var(--track);position:relative}
 .days .on i{background:var(--accent)}
 .days .on i::after{content:"";position:absolute;inset:6px;background:var(--accent-ink);-webkit-mask:var(--check) center/contain no-repeat}
 .days .today span{color:var(--text);font-weight:700}
@@ -112,7 +114,7 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .set .acts{display:flex;gap:2px;opacity:0;transition:opacity .15s}
 .set:hover .acts,.set:focus-within .acts{opacity:1}
 
-.bar{height:6px;border-radius:99px;background:var(--surface2);overflow:hidden;display:flex}
+.bar{height:6px;border-radius:99px;background:var(--track);overflow:hidden;display:flex}
 .bar span{transition:width .6s cubic-bezier(.2,.8,.2,1)}
 .bar .m{background:var(--accent)}
 .bar .f{background:var(--amber)}
@@ -275,6 +277,81 @@ textarea.explain{font-family:inherit;font-size:15px;line-height:1.55;min-height:
 .done-card .sub{margin-top:8px}
 .done-card .row{justify-content:center;margin-top:26px}
 
+/* schedule: a day board (focus blocks, breaks fill the gaps) and a timer that follows it */
+.wrap:has(>#plan:not([hidden])){max-width:1240px;padding-bottom:20px}
+#plan{display:grid;grid-template-columns:minmax(0,1fr) 264px;gap:16px;height:calc(100vh - 44px);min-height:420px}
+html:not(.native) #plan{height:calc(100vh - 140px)}
+.board{position:relative;background:var(--surface);border-radius:14px;box-shadow:var(--lift);border:1px solid var(--edge);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.board-top{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-bottom:1px solid var(--line);position:relative;z-index:20}
+.board-top .btn.ghost{min-height:28px;padding:4px 10px}
+.vsep{width:1px;height:16px;background:var(--line2);margin:0 6px}
+.icon:disabled{opacity:.3;background:none}
+.icon.on{background:var(--press);color:var(--text)}
+.pop{position:absolute;top:44px;left:8px;z-index:40;display:none;flex-direction:column;gap:10px;padding:14px;border-radius:14px;background:var(--sheet);-webkit-backdrop-filter:blur(30px) saturate(1.8);backdrop-filter:blur(30px) saturate(1.8);border:.5px solid var(--line2);box-shadow:0 14px 40px rgba(0,0,0,.2);transform-origin:16px 0}
+.pop.open{display:flex;animation:popin .18s cubic-bezier(.2,.9,.25,1)}
+@keyframes popin{from{opacity:0;transform:scale(.94)}}
+.pop b{font-size:13px;font-weight:600}
+.pop .btn{width:100%}
+.scroller{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.pgrid{display:grid;grid-template-columns:64px 1fr;padding:10px 0 12px}
+.hours{position:relative}
+.hour-label{position:absolute;right:12px;transform:translateY(-50%);font:500 11px var(--round);color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.lanes{position:relative;border-left:1px solid var(--line);cursor:crosshair;touch-action:none}
+.layer{position:absolute;inset:0;pointer-events:none}
+.hour-line{position:absolute;left:0;right:0;border-top:1px solid var(--line)}
+.empty-hint{position:absolute;left:0;right:0;top:38%;text-align:center;color:var(--muted);font-size:13px}
+.blk,.brk,.ghostblk{position:absolute;left:10px;right:12px;border-radius:8px}
+.blk{padding:5px 10px;overflow:hidden;pointer-events:auto;cursor:grab;background:color-mix(in srgb,var(--accent) 15%,var(--surface));color:var(--accent);display:flex;flex-direction:column;gap:2px;box-shadow:inset 3px 0 0 var(--accent);transition:box-shadow .12s}
+.blk:hover{background:color-mix(in srgb,var(--accent) 20%,var(--surface))}
+.blk.sel{box-shadow:inset 3px 0 0 var(--accent),inset 0 0 0 1.5px var(--accent)}
+.blk.dragging{z-index:6;cursor:grabbing;box-shadow:inset 3px 0 0 var(--accent),inset 0 0 0 1.5px var(--accent),0 8px 20px rgba(0,0,0,.14)}
+.blk .ttl{align-self:flex-start;max-width:100%;font-size:13.5px;font-weight:600;line-height:1.25;cursor:text;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:4px;color:var(--text)}
+.blk .ttl.empty{opacity:.45}
+.blk .ttl:hover{box-shadow:0 0 0 1px var(--line2)}
+input.ttl{background:transparent;border:0;outline:none;padding:0;width:100%;color:var(--text);font:600 13.5px var(--font);box-shadow:none!important;border-radius:0}
+.blk .meta{display:flex;align-items:baseline;gap:8px;font:500 11px var(--round);line-height:1.2;white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}
+.blk .meta .dur{color:var(--muted)}
+.blk.one{flex-direction:row;align-items:center;gap:8px;padding:0 10px}
+.blk.one .ttl{align-self:center;font-size:12px;flex:0 1 auto;min-width:0}
+.blk.one .meta{font-size:10px;flex:none}
+.blk.tiny{padding:0 8px}.blk.tiny .ttl{font-size:10.5px}.blk.tiny .meta{font-size:9px}
+.blk .grip{position:absolute;left:0;right:0;height:8px;cursor:ns-resize}
+.blk .grip.t{top:-1px}.blk .grip.b{bottom:-1px}
+.brk{background:color-mix(in srgb,var(--amber) 8%,transparent);color:var(--amber);display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;font-weight:500;overflow:hidden;white-space:nowrap}
+.brk.small{font-size:10px;padding:0 8px}
+.brk .min{font:500 11px var(--round);opacity:.8}
+.ghostblk{background:color-mix(in srgb,var(--accent) 15%,var(--surface));box-shadow:inset 0 0 0 1.5px var(--accent);opacity:.75}
+.nowline{position:absolute;left:-64px;right:0;height:0;border-top:1.5px solid var(--red);z-index:5}
+.nowline::after{content:"";position:absolute;left:61px;top:-4.5px;width:8px;height:8px;border-radius:50%;background:var(--red)}
+.nowpill{position:absolute;left:4px;top:-9px;font:600 10px var(--round);color:#fff;background:var(--red);border-radius:5px;padding:1px 5px;font-variant-numeric:tabular-nums}
+.hoverline{position:absolute;left:-64px;right:0;height:0;border-top:1px dashed var(--line2);z-index:4;display:none}
+.hovertime{position:absolute;left:4px;top:-9px;font:500 10px var(--round);color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:0 5px}
+.toast{position:absolute;left:50%;bottom:14px;transform:translate(-50%,6px);background:var(--sheet);-webkit-backdrop-filter:blur(30px) saturate(1.8);backdrop-filter:blur(30px) saturate(1.8);border:.5px solid var(--line2);box-shadow:0 8px 24px rgba(0,0,0,.16);font-size:12.5px;padding:7px 14px;border-radius:99px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;max-width:90%;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.timer{align-self:start;border-radius:22px;padding:22px 16px 20px;text-align:center;color:#fff;background:radial-gradient(120% 90% at 50% 100%,var(--hero-glow) 0%,transparent 70%),var(--hero)}
+.phase{font-weight:600;font-size:13px;color:rgba(255,255,255,.72);margin-bottom:14px}
+.ringwrap{position:relative;width:184px;height:184px;margin:0 auto}
+.tring{width:100%;height:100%;display:block;overflow:visible}
+.tring circle{fill:none;stroke-linecap:round;stroke-width:7}
+.tring .track{stroke:rgba(255,255,255,.16)}
+.tring .prog{stroke:rgba(255,255,255,.4);transition:stroke .5s}
+.timer.is-work .tring .prog{stroke:#8ff3e1}
+.timer.is-break .tring .prog{stroke:#fcd34d}
+.ripple{position:absolute;inset:0;border-radius:50%;border:2px solid #8ff3e1;opacity:0;pointer-events:none}
+.timer.is-break .ripple{border-color:#fcd34d}
+.readout{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.digits{font:700 38px/1 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.segname{font-size:12px;color:rgba(255,255,255,.72);max-width:135px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.until{margin-top:16px;font-size:13px;color:rgba(255,255,255,.72)}
+.until b{font:600 13px var(--round);color:#fff;font-variant-numeric:tabular-nums}
+@keyframes ringPulse{30%{transform:scale(1.05)}}
+@keyframes rippleOut{from{transform:scale(.9);opacity:.6}to{transform:scale(1.3);opacity:0}}
+@keyframes digitTick{from{transform:scale(1.1)}}
+.timer.switching .ringwrap{animation:ringPulse .8s cubic-bezier(.34,1.56,.64,1)}
+.timer.switching .ripple{animation:rippleOut .8s ease-out}
+.digits.tick{animation:digitTick .35s ease-out}
+@media(max-width:780px){#plan{grid-template-columns:1fr;height:auto}.timer{order:-1}.board{height:70vh}}
+
 /* settings: grouped rows, like System Settings */
 dialog{margin:12px auto auto;max-height:calc(100% - 24px);background:var(--sheet);-webkit-backdrop-filter:blur(40px) saturate(1.8);backdrop-filter:blur(40px) saturate(1.8);color:var(--text);border:.5px solid var(--line2);border-radius:22px;padding:22px;width:min(520px,calc(100% - 32px));box-shadow:0 24px 70px rgba(0,0,0,.28)}
 dialog::backdrop{background:rgba(0,0,0,.12)}
@@ -335,6 +412,7 @@ dialog .sub{font-size:13px}
   <header>
     <div class="logo"><i>D</i>Drill</div>
     <div class="row">
+    <button class="btn" id="openPlan">Schedule</button>
     <button class="btn primary" id="newSet">New Set</button>
     <button class="icon" id="openSettings" title="Settings" aria-label="Settings">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -399,6 +477,44 @@ dialog .sub{font-size:13px}
       <div class="legend"><span><b id="cNew">0</b> new</span><span class="lf"><b id="cFam">0</b> learning</span><span class="lm"><b id="cMas">0</b> mastered</span><span class="combo" id="combo"></span></div>
     </div>
     <div class="deck" id="deck"><div id="stage"></div></div>
+  </section>
+
+  <!-- SCHEDULE: block out the day, then a focus/break timer follows it -->
+  <section id="plan" hidden>
+    <div class="board">
+      <div class="board-top">
+        <button class="icon" id="pRange" title="Visible Hours" aria-label="Visible hours"></button>
+        <span class="row" style="gap:2px">
+          <button class="icon" id="pUndo" title="Undo (⌘Z)" aria-label="Undo" disabled></button>
+          <button class="icon" id="pRedo" title="Redo (⇧⌘Z)" aria-label="Redo" disabled></button>
+          <i class="vsep"></i>
+          <button class="icon" id="pSave" title="Save a Backup File" aria-label="Save a backup file"></button>
+          <label class="icon" id="pOpen" title="Restore from a Backup File" aria-label="Restore from a backup file"><input type="file" id="pFile" accept=".json,application/json" hidden></label>
+          <i class="vsep"></i>
+          <button class="btn ghost" id="pClear">Clear Day</button>
+        </span>
+        <div class="pop" id="pPop">
+          <b>Visible hours</b>
+          <div class="row"><select id="pStart"></select><span class="sub">to</span><select id="pEnd"></select></div>
+          <button class="btn primary" id="pApply">Apply</button>
+        </div>
+      </div>
+      <div class="scroller" id="pScroll">
+        <div class="pgrid"><div class="hours" id="pHours"></div>
+          <div class="lanes" id="pLanes"><div class="layer" id="pLines"></div><div class="layer" id="pBreaks"></div><div class="layer" id="pBlocks"></div><div class="layer" id="pFx"></div></div>
+        </div>
+      </div>
+      <div class="toast" id="pToast"></div>
+    </div>
+    <div class="timer" id="pTimer">
+      <div class="phase" id="pPhase">Idle</div>
+      <div class="ringwrap">
+        <svg class="tring" viewBox="0 0 120 120" aria-hidden="true"><circle class="track" cx="60" cy="60" r="54"/><circle class="prog" id="pProg" cx="60" cy="60" r="54" pathLength="100" transform="rotate(-90 60 60)"/></svg>
+        <div class="ripple"></div>
+        <div class="readout"><div class="digits" id="pDigits">--:--</div><div class="segname" id="pSeg">Nothing running</div></div>
+      </div>
+      <div class="until" id="pUntil">&nbsp;</div>
+    </div>
   </section>
 </div>
 
@@ -517,7 +633,7 @@ let genAbort = null, aiAbort = null, shown = 'home';
 function show(id) {
   clearTimeout(timer); onEnter = keyPick = null;
   aiAbort?.abort(); genAbort?.abort();
-  ['home', 'edit', 'learn'].forEach(v => $('#' + v).hidden = v !== id);
+  ['home', 'edit', 'learn', 'plan'].forEach(v => $('#' + v).hidden = v !== id);
   shown = id; scrollTo(0, 0);
 }
 // How far through the set you are: every stage a card has climbed counts, so each round moves it.
@@ -541,12 +657,13 @@ function renderHome() {
     <ol class="days">${week.map(d => `<li class="${days.includes(dayKey(d)) ? 'on' : ''} ${dayKey(d) === today ? 'today' : ''}" title="${d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}"><i></i><span>${d.toLocaleDateString(undefined, { weekday: 'narrow' })}</span></li>`).join('')}</ol></div>`;
   const list = !sets.length ? '' : `<div class="list-head"><h2>Sets</h2><button class="btn" data-act="new">New Set</button></div>
     <ul class="sets">${sets.map(s => {
-      return `<li class="set" data-id="${s.id}">${ring(progress(s))}<div class="name"><span>${esc(s.name)}</span><small>${plural(s.cards.length, 'term')} · ${pctOf(s)}% learned</small></div>
+      return `<li class="set" data-id="${s.id}" tabindex="0">${ring(progress(s))}<div class="name"><span>${esc(s.name)}</span><small>${plural(s.cards.length, 'term')} · ${pctOf(s)}% learned</small></div>
         <span class="when">${ago(s.seen)}</span><span class="acts">${cfg.ai ? `<button class="icon" data-act="opt" title="Optimize with AI">${svg(ICON.spark)}</button>` : ''}<button class="icon" data-act="edit" title="Edit">${svg(ICON.edit)}</button><button class="icon" data-act="reset" title="Reset progress">${svg(ICON.reset)}</button><button class="icon" data-act="del" title="Delete">${svg(ICON.del)}</button></span></li>`;
     }).join('')}</ul>`;
   $('#home').innerHTML = hero + weekHTML + list;
   show('home');
 }
+$('#home').onkeydown = e => { if (e.key === 'Enter' && e.target.matches('.set')) e.target.click() };
 $('#home').onclick = e => {
   const act = e.target.closest('[data-act]')?.dataset.act, row = e.target.closest('[data-id]');
   if (act === 'new') return openEdit();
@@ -570,6 +687,8 @@ function deleteSet(s) {
 }
 document.querySelectorAll('[data-home]').forEach(b => b.onclick = () => SHEET.length ? cancelSheet() : renderHome());
 $('#newSet').onclick = () => openEdit();
+$('#openPlan').onclick = () => Plan.open();
+$('.logo').onclick = renderHome;
 document.querySelectorAll('[data-spark]').forEach(b => b.insertAdjacentHTML('afterbegin', svg(ICON.spark, 'spark')));
 
 /* ---------- editor ---------- */
@@ -1471,6 +1590,345 @@ $('#testAi').onclick = async () => {
   } catch (e) { st.textContent = aiErr(e); st.style.color = 'var(--red)' }
 };
 
+/* ---------- schedule: drag out focus blocks; the gaps are breaks; the timer counts down whichever one is now ---------- */
+const Plan = (() => {
+  const SNAP = 15, MIN_DUR = 15, MIN_KEEP = 15, PAD = 22, MIN_PPM = .5, STORE = 'drill.plan';
+  let DAY_START = 360, DAY_END = 1380, PPM = 1;
+  const el = id => document.getElementById(id);
+  const hoursEl = el('pHours'), lanesEl = el('pLanes'), linesEl = el('pLines'), breaksEl = el('pBreaks'), blocksEl = el('pBlocks'),
+    fxEl = el('pFx'), scrollerEl = el('pScroll'), timerEl = el('pTimer'), phaseEl = el('pPhase'), progEl = el('pProg'),
+    digitsEl = el('pDigits'), segEl = el('pSeg'), untilEl = el('pUntil'), toastEl = el('pToast');
+  [['pRange', '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/>'], ['pUndo', '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a5.5 5.5 0 0 1 0 11h-2.5"/>'],
+   ['pRedo', '<path d="m15 14 5-5-5-5"/><path d="M20 9H10a5.5 5.5 0 0 0 0 11h2.5"/>'], ['pSave', '<path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M4.5 19h15"/>'],
+   ['pOpen', '<path d="M12 19V8"/><path d="m7.5 12.5 4.5-4.5 4.5 4.5"/><path d="M4.5 19h15"/>']].forEach(([id, p]) => el(id).insertAdjacentHTML('afterbegin', svg(p)));
+  // Only touch the DOM when text changes: the timer runs every frame, and every DOM change is a state post to Drill.app.
+  const put = (e, t, html) => { if (e[html ? 'innerHTML' : 'textContent'] !== t) e[html ? 'innerHTML' : 'textContent'] = t };
+  const setRing = f => { f = Math.max(0, Math.min(1, f)); progEl.style.strokeDasharray = `${(f * 100).toFixed(2)} 100`; progEl.style.opacity = f ? 1 : 0 };
+  const uid = () => 'b' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+  const pad = n => String(n).padStart(2, '0');
+  const clampMin = m => Math.max(DAY_START, Math.min(DAY_END, m));
+  const snap = m => Math.round(m / SNAP) * SNAP;
+  const minToY = m => (m - DAY_START) * PPM, yToMin = y => snap(DAY_START + y / PPM);
+  const t12 = m => { const h = Math.floor(m / 60) % 24; return (h % 12 || 12) + ':' + pad(((m % 60) + 60) % 60) };
+  const period = m => Math.floor(m / 60) % 24 < 12 ? 'AM' : 'PM';
+  const fmtRange = (s, e) => t12(s) + (period(s) !== period(e) ? ' ' + period(s) : '') + ' – ' + t12(e) + ' ' + period(e);
+  const fmtClock = m => t12(m) + ' ' + period(m);
+  const hourName = h => (h % 12 || 12) + (h % 24 < 12 ? ' AM' : ' PM');
+  const fmtDur = sec => { sec = Math.max(0, Math.ceil(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return h ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}` };
+  const humanMin = n => n < 60 ? n + ' min' : Math.floor(n / 60) + 'h' + (n % 60 ? ' ' + n % 60 + 'm' : '');
+  let toastT;
+  const toast = msg => { toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove('show'), 2600) };
+
+  // state (a backup file from the web version restores here too)
+  const cleanBlocks = list => (Array.isArray(list) ? list : []).filter(b => b && typeof b.start === 'number' && typeof b.end === 'number' && b.end > b.start)
+    .map(b => ({ id: String(b.id || uid()), start: b.start, end: b.end, title: typeof b.title === 'string' ? b.title.slice(0, 200) : '' }));
+  const saved = load(STORE, null);
+  const state = saved ? { view: saved.view?.end > saved.view?.start ? saved.view : { start: 360, end: 1380 }, blocks: cleanBlocks(saved.blocks) }
+    : { view: { start: 360, end: 1380 }, blocks: cleanBlocks([{ start: 540, end: 630, title: 'Deep work' }, { start: 645, end: 720, title: 'Study' }, { start: 780, end: 870, title: 'Project build' }, { start: 900, end: 960, title: 'Review' }]) };
+  DAY_START = state.view.start; DAY_END = state.view.end;
+  const persist = () => { localStorage[STORE] = JSON.stringify(state) };
+  let selection = [];
+  const isSel = id => selection.includes(id);
+  const snapshot = () => state.blocks.map(b => ({ ...b }));
+
+  // history
+  const past = [], future = [];
+  let pending = null;
+  const mark = () => { pending ??= JSON.stringify(state.blocks) }; // before a change
+  function commit() { // after it
+    pending ??= JSON.stringify(state.blocks);
+    if (JSON.stringify(state.blocks) !== pending) { past.push(pending); if (past.length > 100) past.shift(); future.length = 0 }
+    pending = null; persist(); histButtons();
+  }
+  const histButtons = () => { el('pUndo').disabled = !past.length; el('pRedo').disabled = !future.length };
+  function step(from, to) {
+    if (!from.length) return;
+    to.push(JSON.stringify(state.blocks)); state.blocks = cleanBlocks(JSON.parse(from.pop()));
+    selection = []; persist(); render(); histButtons();
+  }
+  const undo = () => step(past, future), redo = () => step(future, past);
+  el('pUndo').onclick = undo; el('pRedo').onclick = redo;
+
+  // overlap: the block being placed wins; anything under it is trimmed or split
+  function subtract(seg, cuts) {
+    let parts = [{ start: seg.start, end: seg.end }];
+    for (const c of cuts) parts = parts.flatMap(p => c.end <= p.start || c.start >= p.end ? [p]
+      : [...(c.start > p.start ? [{ start: p.start, end: c.start }] : []), ...(c.end < p.end ? [{ start: c.end, end: p.end }] : [])]);
+    return parts;
+  }
+  function resolve(activeIds) {
+    const cuts = state.blocks.filter(b => activeIds.includes(b.id)).sort((a, b) => a.start - b.start);
+    state.blocks = state.blocks.flatMap(b => activeIds.includes(b.id) ? [b]
+      : subtract(b, cuts).filter(p => p.end - p.start >= MIN_KEEP).map((p, i) => i ? { id: uid(), ...p, title: b.title } : Object.assign(b, p)));
+  }
+  const sorted = () => state.blocks.slice().sort((a, b) => a.start - b.start);
+  function segments() {
+    const bs = sorted(), segs = [];
+    bs.forEach((b, i) => {
+      segs.push({ type: 'work', start: b.start, end: b.end, title: b.title || 'Focus' });
+      if (bs[i + 1]?.start > b.end) segs.push({ type: 'break', start: b.end, end: bs[i + 1].start, title: 'Break' });
+    });
+    return segs;
+  }
+
+  // the visible hours always fill the board
+  function fit() {
+    const avail = scrollerEl.clientHeight - PAD, span = DAY_END - DAY_START;
+    if (avail > 60 && span > 0) PPM = Math.max(MIN_PPM, avail / span);
+    const height = span * PPM + 'px';
+    hoursEl.style.height = lanesEl.style.height = height;
+    let hours = '', lines = '';
+    const first = Math.ceil(DAY_START / 60), every = 60 * PPM < 26 ? 2 : 1; // thin out labels when hours get short
+    for (let h = first; h <= Math.floor(DAY_END / 60); h++) {
+      if ((h - first) % every === 0) hours += `<div class="hour-label" style="top:${minToY(h * 60)}px">${hourName(h)}</div>`;
+      lines += `<div class="hour-line" style="top:${minToY(h * 60)}px"></div>`;
+    }
+    hoursEl.innerHTML = hours; linesEl.innerHTML = lines;
+    render();
+  }
+
+  function render() {
+    breaksEl.innerHTML = segments().filter(s => s.type === 'break').map(s => {
+      const vs = Math.max(s.start, DAY_START), ve = Math.min(s.end, DAY_END); if (ve <= vs) return '';
+      const h = (ve - vs) * PPM;
+      return `<div class="brk${h < 30 ? ' small' : ''}" style="top:${minToY(vs)}px;height:${Math.max(h - 2, 9)}px"><span>Break</span><span class="min">${humanMin(s.end - s.start)}</span></div>`;
+    }).join('');
+    blocksEl.replaceChildren(...sorted().map(blockEl).filter(Boolean));
+    if (!state.blocks.length) blocksEl.innerHTML = '<div class="empty-hint">Drag anywhere to block out time</div>';
+    tick();
+  }
+
+  function blockEl(b) {
+    const vs = Math.max(b.start, DAY_START), ve = Math.min(b.end, DAY_END); if (ve <= vs) return null;
+    const h = (ve - vs) * PPM, e = document.createElement('div');
+    e.className = 'blk' + (h < 40 ? ' one' : '') + (h < 22 ? ' tiny' : '') + (isSel(b.id) ? ' sel' : '') + (drag?.ids?.includes(b.id) ? ' dragging' : '');
+    e.style.top = minToY(vs) + 'px'; e.style.height = Math.max(h - 2, 11) + 'px'; e.dataset.id = b.id;
+    e.innerHTML = `<span class="ttl${b.title ? '' : ' empty'}">${esc(b.title || 'Untitled')}</span><div class="meta"><span>${fmtRange(b.start, b.end)}</span><span class="dur">${humanMin(b.end - b.start)}</span></div>`
+      + (h >= 18 ? '<div class="grip t"></div><div class="grip b"></div>' : '');
+    const ttl = e.querySelector('.ttl'), mod = ev => ev.shiftKey || ev.metaKey || ev.ctrlKey;
+    ttl.onpointerdown = ev => { if (!mod(ev)) ev.stopPropagation() };
+    ttl.onclick = ev => { if (!mod(ev)) { ev.stopPropagation(); edit(b, e) } };
+    e.querySelector('.grip.t')?.addEventListener('pointerdown', ev => beginDrag(ev, b, 'top'));
+    e.querySelector('.grip.b')?.addEventListener('pointerdown', ev => beginDrag(ev, b, 'bottom'));
+    e.onpointerdown = ev => beginDrag(ev, b, 'move');
+    return e;
+  }
+
+  function edit(b, e) {
+    const span = e.querySelector('span.ttl'); if (!span) return;
+    mark();
+    const input = Object.assign(document.createElement('input'), { className: 'ttl', value: b.title || '', placeholder: 'Untitled', maxLength: 200 });
+    span.replaceWith(input); input.focus(); input.setSelectionRange(input.value.length, input.value.length);
+    input.addEventListener('blur', () => { b.title = input.value.trim(); if (!drag) selection = []; commit(); render() }, { once: true });
+    input.onkeydown = ev => { ev.stopPropagation(); if (ev.key === 'Enter' || ev.key === 'Escape') { ev.preventDefault(); input.blur() } };
+    input.onpointerdown = ev => ev.stopPropagation();
+  }
+
+  // dragging: always recomputed from the snapshot taken when it began
+  let drag = null;
+  function applyGeometry(geom) {
+    state.blocks = drag.baseline.map(b => ({ ...b, ...(geom[b.id] && { start: geom[b.id].start, end: geom[b.id].end }) }));
+    for (const id in geom) if (!state.blocks.some(b => b.id === id)) state.blocks.push({ id, start: geom[id].start, end: geom[id].end, title: geom[id].title || '' });
+    resolve(Object.keys(geom));
+  }
+  function beginDrag(e, b, mode) {
+    if (e.button) return;
+    e.stopPropagation(); e.preventDefault();
+    if (mode === 'move' && (e.shiftKey || e.metaKey || e.ctrlKey)) {
+      selection = isSel(b.id) ? selection.filter(id => id !== b.id) : [...selection, b.id];
+      return render();
+    }
+    if (!isSel(b.id)) selection = [b.id];
+    mark();
+    const m = yToMin(e.clientY - lanesEl.getBoundingClientRect().top), baseline = snapshot();
+    if (mode === 'move') {
+      const group = baseline.filter(x => isSel(x.id));
+      drag = { mode, anchor: m, baseline, group, ids: group.map(x => x.id),
+        minDelta: DAY_START - Math.min(...group.map(x => x.start)), maxDelta: DAY_END - Math.max(...group.map(x => x.end)) };
+    } else drag = { mode, baseline, base: baseline.find(x => x.id === b.id), ids: [b.id] };
+    render();
+  }
+  lanesEl.addEventListener('pointerdown', e => {
+    if (e.target !== lanesEl || e.button) return;
+    e.preventDefault();
+    const m = clampMin(yToMin(e.clientY - lanesEl.getBoundingClientRect().top));
+    selection = []; mark();
+    drag = { mode: 'create', anchor: m, lo: m, hi: Math.min(DAY_END, m + 30), baseline: snapshot(), ids: [] };
+    lanesEl.insertAdjacentHTML('beforeend', `<div class="ghostblk" id="pGhost" style="top:${minToY(drag.lo)}px;height:${(drag.hi - drag.lo) * PPM}px"></div>`);
+    render();
+  });
+  addEventListener('pointermove', e => {
+    if (shown !== 'plan') return;
+    const rect = lanesEl.getBoundingClientRect(), y = e.clientY - rect.top, m = clampMin(yToMin(y));
+    if (!drag) return e.clientX >= rect.left && e.clientX <= rect.right && y >= 0 && y <= rect.height ? showHover(m) : hideHover();
+    showHover(m);
+    if (drag.mode === 'create') {
+      let lo = Math.min(drag.anchor, m), hi = Math.max(drag.anchor, m);
+      if (hi - lo < MIN_DUR) hi = Math.min(DAY_END, lo + MIN_DUR);
+      Object.assign(drag, { lo, hi });
+      const g = el('pGhost'); if (g) { g.style.top = minToY(lo) + 'px'; g.style.height = (hi - lo) * PPM + 'px' }
+      return;
+    }
+    const geom = {};
+    if (drag.mode === 'move') {
+      const d = Math.max(drag.minDelta, Math.min(drag.maxDelta, snap(m - drag.anchor)));
+      drag.group.forEach(g => geom[g.id] = { start: g.start + d, end: g.end + d });
+    } else if (drag.mode === 'top') geom[drag.base.id] = { start: Math.min(drag.base.end - MIN_DUR, m), end: drag.base.end };
+    else geom[drag.base.id] = { start: drag.base.start, end: Math.max(drag.base.start + MIN_DUR, m) };
+    applyGeometry(geom); render();
+  });
+  lanesEl.addEventListener('pointerleave', () => { if (!drag) hideHover() });
+  addEventListener('pointerup', () => {
+    if (!drag) return;
+    if (drag.mode === 'create') {
+      el('pGhost')?.remove();
+      const id = uid();
+      applyGeometry({ [id]: { start: drag.lo, end: drag.hi, title: '' } });
+      selection = [id]; drag = null; commit(); render();
+      const e = blocksEl.querySelector(`[data-id="${id}"]`), b = state.blocks.find(x => x.id === id);
+      if (e && b) edit(b, e);
+      return;
+    }
+    drag = null; commit(); render();
+  });
+  function cancelDrag() {
+    el('pGhost')?.remove();
+    state.blocks = cleanBlocks(drag.baseline); drag = null; pending = null; render();
+  }
+
+  // keyboard
+  let nudgeT;
+  addEventListener('keydown', e => {
+    if (shown !== 'plan' || document.querySelector('dialog[open]') || /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName)) return;
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); return e.shiftKey ? redo() : undo() }
+    if (e.key === 'Escape') { if (drag) cancelDrag(); else { selection = []; render() } return closePop() }
+    if (!selection.length) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault(); mark();
+      state.blocks = state.blocks.filter(b => !isSel(b.id)); selection = []; commit(); render();
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault(); mark();
+      const d0 = e.key === 'ArrowUp' ? -SNAP : SNAP, sel = state.blocks.filter(b => isSel(b.id));
+      if (e.shiftKey) sel.forEach(b => b.end = Math.max(b.start + MIN_DUR, Math.min(DAY_END, b.end + d0)));
+      else {
+        const d = Math.max(DAY_START - Math.min(...sel.map(b => b.start)), Math.min(DAY_END - Math.max(...sel.map(b => b.end)), d0));
+        sel.forEach(b => { b.start += d; b.end += d });
+      }
+      resolve(sel.map(b => b.id)); render();
+      clearTimeout(nudgeT); nudgeT = setTimeout(commit, 450);
+    }
+  });
+
+  // hover guide
+  let hoverEl;
+  function showHover(m) {
+    if (!hoverEl) { fxEl.insertAdjacentHTML('beforeend', '<div class="hoverline"><span class="hovertime"></span></div>'); hoverEl = fxEl.lastChild }
+    hoverEl.style.display = 'block'; hoverEl.style.top = minToY(m) + 'px'; put(hoverEl.firstChild, fmtClock(m));
+  }
+  const hideHover = () => { if (hoverEl) hoverEl.style.display = 'none' };
+
+  el('pClear').onclick = () => {
+    if (!state.blocks.length) return toast('Nothing to clear');
+    if (!confirm(`Clear all ${plural(state.blocks.length, 'block')} from the day? Undo brings them back.`)) return;
+    mark(); state.blocks = []; selection = []; commit(); render();
+  };
+
+  // backup files (same format as the web version)
+  el('pSave').onclick = () => {
+    const d = new Date(), name = `day-plan-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.json`;
+    const text = JSON.stringify({ app: 'one-day-builder', version: 3, view: state.view, blocks: state.blocks }, null, 2);
+    if (NATIVE) return native({ cmd: 'export', text, name }); // Drill.app shows its own Save panel
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click();
+    toast('Backup saved');
+  };
+  el('pFile').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    let data; try { data = JSON.parse(await f.text()) } catch { return toast("That file isn't a saved day plan") }
+    const blocks = cleanBlocks(data?.blocks);
+    if (!blocks.length) return toast('No blocks found in that file');
+    mark(); state.blocks = blocks;
+    if (typeof data.view?.start === 'number' && data.view.end > data.view.start) { DAY_START = data.view.start; DAY_END = data.view.end; state.view = { start: DAY_START, end: DAY_END } }
+    selection = []; commit(); fit();
+    toast(`Restored ${plural(blocks.length, 'block')}`);
+  };
+
+  // visible hours
+  const pop = el('pPop'), selStart = el('pStart'), selEnd = el('pEnd');
+  for (let h = 0; h <= 22; h++) selStart.add(new Option(hourName(h), h));
+  for (let h = 1; h <= 24; h++) selEnd.add(new Option(hourName(h), h));
+  const closePop = () => { pop.classList.remove('open'); el('pRange').classList.remove('on') };
+  el('pRange').onclick = e => {
+    e.stopPropagation();
+    selStart.value = Math.floor(DAY_START / 60); selEnd.value = Math.floor(DAY_END / 60);
+    el('pRange').classList.toggle('on', pop.classList.toggle('open'));
+  };
+  pop.onclick = e => e.stopPropagation();
+  document.addEventListener('click', closePop);
+  el('pApply').onclick = () => {
+    const s = +selStart.value, en = Math.max(+selEnd.value, s + 1);
+    DAY_START = s * 60; DAY_END = en * 60; state.view = { start: DAY_START, end: DAY_END };
+    persist(); closePop(); fit();
+    const hidden = state.blocks.filter(b => b.end <= DAY_START || b.start >= DAY_END).length;
+    if (hidden) toast(`${plural(hidden, 'block')} outside these hours. Still saved, just not shown.`);
+  };
+
+  // now line + timer
+  let nowEl, lastKey = null;
+  const nowMinutes = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60 + d.getMilliseconds() / 6e4 };
+  function tick() {
+    const nm = nowMinutes();
+    if (nm >= DAY_START && nm <= DAY_END) {
+      if (!nowEl) { fxEl.insertAdjacentHTML('beforeend', '<div class="nowline"><div class="nowpill"></div></div>'); nowEl = fxEl.lastChild }
+      nowEl.style.display = ''; nowEl.style.top = minToY(nm) + 'px'; put(nowEl.firstChild, fmtClock(Math.floor(nm)));
+    } else if (nowEl) nowEl.style.display = 'none';
+
+    const segs = segments(), idx = segs.findIndex(s => nm >= s.start && nm < s.end), cur = segs[idx];
+    const key = cur ? cur.type + '@' + cur.start : segs.length && nm < segs[0].start ? 'pre' : 'post';
+    if (key !== lastKey) {
+      if (lastKey !== null && cur) {
+        timerEl.classList.remove('switching'); void timerEl.offsetWidth; timerEl.classList.add('switching');
+        setTimeout(() => timerEl.classList.remove('switching'), 900);
+        if (shown === 'plan') feel('round');
+      }
+      lastKey = key;
+    }
+    timerEl.classList.toggle('is-work', cur?.type === 'work');
+    timerEl.classList.toggle('is-break', cur?.type === 'break');
+    if (cur) {
+      setRing(1 - (nm - cur.start) / (cur.end - cur.start));
+      put(phaseEl, cur.type === 'work' ? 'Focus' : 'Break');
+      put(segEl, cur.type === 'work' ? cur.title : fmtRange(cur.start, cur.end));
+      setDigits(fmtDur((cur.end - nm) * 60), (cur.end - nm) * 60);
+      const nb = segs.slice(idx + 1).find(s => s.type === 'break');
+      put(untilEl, cur.type === 'work' ? (nb ? `Break in <b>${fmtDur((nb.start - nm) * 60)}</b>` : 'Last block of the day') : `Focus in <b>${fmtDur((cur.end - nm) * 60)}</b>`, true);
+    } else {
+      setRing(0); put(phaseEl, 'Idle');
+      if (segs.length && nm < segs[0].start) {
+        setDigits(fmtDur((segs[0].start - nm) * 60), 999); put(segEl, 'until ' + segs[0].title); put(untilEl, `Starts at <b>${fmtClock(segs[0].start)}</b>`, true);
+      } else if (segs.length) { setDigits('00:00', 999); put(segEl, 'Day complete'); put(untilEl, '&nbsp;', true) }
+      else { setDigits('--:--', 999); put(segEl, 'Nothing scheduled'); put(untilEl, 'Drag on the board to add a block', true) }
+    }
+  }
+  function setDigits(text, remSec) {
+    if (digitsEl.textContent === text) return;
+    digitsEl.textContent = text;
+    if (remSec <= 10) { digitsEl.classList.remove('tick'); void digitsEl.offsetWidth; digitsEl.classList.add('tick') }
+  }
+  // Runs while the schedule is on screen; a second at a time with Reduce Motion on.
+  const slow = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function loop() { if (shown !== 'plan') return; tick(); slow ? setTimeout(loop, 1000) : requestAnimationFrame(loop) }
+  let lastH = 0;
+  new ResizeObserver(() => { if (Math.abs(scrollerEl.clientHeight - lastH) > 1) { lastH = scrollerEl.clientHeight; fit() } }).observe(scrollerEl);
+  histButtons();
+
+  return {
+    open() { show('plan'); requestAnimationFrame(() => { fit(); loop() }) },
+    focus: () => state.blocks.reduce((a, b) => a + b.end - b.start, 0),
+    humanMin, fmtRange, fmtDur, subtract, segments, state, resolve,
+  };
+})();
+
 /* ---------- Drill.app: native sidebar, toolbar, title and menus (see Drill.swift) ---------- */
 const NATIVE = !!window.webkit?.messageHandlers?.drill;
 const native = msg => NATIVE && webkit.messageHandlers.drill.postMessage(JSON.stringify(msg));
@@ -1480,8 +1938,9 @@ function pageState() {
   return {
     sets: sets.map(x => ({ id: x.id, name: x.name, n: x.cards.length, m: stats(x).m, p: progress(x) })),
     view: shown, setId: s?.id ?? null, answerWith: cfg.answerWith, ai: cfg.ai,
-    title: shown === 'learn' ? s.name : shown === 'edit' ? (s ? 'Edit Set' : 'New Set') : 'All Sets',
-    subtitle: shown === 'learn' ? `${st.m} of ${st.n} mastered` : shown === 'edit' ? s?.name || '' : `${sets.length} set${sets.length === 1 ? '' : 's'}`,
+    title: shown === 'learn' ? s.name : shown === 'edit' ? (s ? 'Edit Set' : 'New Set') : shown === 'plan' ? 'Schedule' : 'All Sets',
+    subtitle: shown === 'learn' ? `${st.m} of ${st.n} mastered` : shown === 'edit' ? s?.name || '' : shown === 'plan'
+      ? `${new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })} · ${Plan.humanMin(Plan.focus())} of focus` : `${sets.length} set${sets.length === 1 ? '' : 's'}`,
     can: shown === 'learn' ? Object.keys(STUDY_BTNS).filter(k => document.querySelector(STUDY_BTNS[k])) : [],
   };
 }
@@ -1490,7 +1949,7 @@ function post() { if (window.webkit?.messageHandlers?.drill && !SHEET.length) po
 window.drillCmd = (cmd, arg) => {
   const s = sets.find(x => x.id === arg);
   ({
-    home: renderHome, learn: () => s && startLearn(s), edit: () => s && openEdit(s), new: () => openEdit(),
+    home: renderHome, plan: () => Plan.open(), learn: () => s && startLearn(s), edit: () => s && openEdit(s), new: () => openEdit(),
     opt: () => s && optimizeSet(s), reset: () => s && resetSet(s), del: () => s && deleteSet(s),
     settings: () => openSettings(false), import: () => importText(arg),
     answer: () => { cfg.answerWith = $('#answerWith').value = arg; save() },
@@ -1572,6 +2031,10 @@ if (location.hash === '#test') {
   A(ago(0) === 'Not studied yet' && ago(T.getTime(), T) === 'Today' && ago(T.getTime() - 864e5, T) === 'Yesterday' && ago(T.getTime() - 3 * 864e5, T) === '3 days ago', 'relative days');
   A(progress({ cards: [{ lv: 3 }, { lv: 0 }, { lv: 1 }, { lv: 2 }] }) === .5, 'progress counts stages');
   A(SHEET.length === 0 && /stroke-dasharray:50 100/.test(ring(.5)) && /opacity:0/.test(ring(0)), 'ring');
+  A(Plan.humanMin(45) === '45 min' && Plan.humanMin(90) === '1h 30m' && Plan.humanMin(120) === '2h', 'plan durations');
+  A(JSON.stringify(Plan.subtract({ start: 0, end: 100 }, [{ start: 30, end: 60 }])) === '[{"start":0,"end":30},{"start":60,"end":100}]', 'plan split');
+  A(Plan.fmtRange(690, 780) === '11:30 AM – 1:00 PM' && Plan.fmtRange(540, 600) === '9:00 – 10:00 AM' && Plan.fmtDur(3725) === '1:02:05', 'plan times');
+  drillCmd('plan'); A(shown === 'plan' && pageState().title === 'Schedule' && pageState().setId === null, 'native state on the schedule'); drillCmd('home');
   console.log('Drill self-check done');
 }
 if (SHEET.length) bootSheet();

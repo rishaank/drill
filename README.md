@@ -4,7 +4,9 @@ A flashcard app for Mac with a "learn" mode that climbs each card from multiple 
 
 Works fully offline without AI. Your sets stay on your Mac.
 
-![Drill explaining a missed multiple-choice question, with "why not the others" notes and a memory hook](screenshot.png)
+A **Schedule** tab plans your day: drag out focus blocks, the gaps become breaks, and a timer counts down whichever one is now.
+
+![Drill's home screen: the next set to study, a day streak, and every set with its progress](screenshot.png)
 
 ## Install
 

@@ -226,9 +226,9 @@ func apiError(_ text: String) -> String? {
 // The page posts what it shows ({"state": …}); the sidebar, toolbar, window title and menus mirror it,
 // and send commands back with drillCmd(cmd, arg).
 struct Deck: Decodable, Identifiable, Hashable { let id: Int; let name: String; let n: Int; let m: Int; let p: Double }  // p: share of stages climbed
-struct PageState: Decodable {
+struct PageState: Decodable, Equatable {
     var sets: [Deck] = []
-    var view = "home"         // home | edit | learn
+    var view = "home"         // home | edit | learn | plan
     var setId: Int?           // the set on screen
     var title = "Drill"
     var subtitle = ""
@@ -236,12 +236,12 @@ struct PageState: Decodable {
     var ai = false
     var can: [String] = []    // study buttons on screen: primary, dunno, hook, override, flag
 }
-// cmd: export | sheet (kind) | size (h) | close (sets: storage changed, start: new set to study) | haptic
-struct Message: Decodable { var state: PageState?; var cmd: String?; var kind: String?; var h: Double?; var sets: Bool?; var start: Int? }
+// cmd: export (text, name: save that file instead of all sets) | sheet (kind) | size (h) | close (sets: storage changed, start: new set to study) | haptic
+struct Message: Decodable { var state: PageState?; var cmd: String?; var kind: String?; var h: Double?; var sets: Bool?; var start: Int?; var text: String?; var name: String? }
 
 @MainActor final class Model: ObservableObject {
     @Published var state = PageState()
-    @Published var selected: Int? = 0  // 0 = All Sets
+    @Published var selected: Int? = 0  // 0 = All Sets, -1 = Schedule
     var run: (String, Any?) -> Void = { _, _ in }
 }
 
@@ -255,16 +255,17 @@ struct Sidebar: View {
         List(selection: Binding(get: { model.selected }, set: { id in
             guard let id, id != model.selected else { return }
             model.selected = id
-            model.run(id == 0 ? "home" : "learn", id == 0 ? nil : id)
+            model.run(id == 0 ? "home" : id == -1 ? "plan" : "learn", id > 0 ? id : nil)
         })) {
             Label("All Sets", systemImage: "square.grid.2x2").tag(0)
+            Label("Schedule", systemImage: "calendar.day.timeline.left").tag(-1)
             Section("Sets") {
                 ForEach(model.state.sets) { s in row(s).tag(s.id).contextMenu { menu(s) } }
             }
         }
         .listStyle(.sidebar)
         .tint(Color(nsColor: teal))
-        .onDeleteCommand { if let id = model.selected, id != 0 { model.run("del", id) } }
+        .onDeleteCommand { if let id = model.selected, id > 0 { model.run("del", id) } }
     }
     func row(_ s: Deck) -> some View {
         let p = s.p
@@ -384,7 +385,7 @@ final class WebPane: NSViewController {
             return
         }
         switch msg.cmd {
-        case "export": exportSets(nil)
+        case "export": if let text = msg.text { saveFile(text, msg.name ?? "Day plan.json") } else { exportSets(nil) }
         case "haptic": NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
         case "sheet": openSheet(msg.kind ?? "settings")
         case "size":  // the sheet's page reports its height: fit it (up to the window), and show it once it has a size
@@ -398,8 +399,8 @@ final class WebPane: NSViewController {
         default: break
         }
         guard m.webView === web, let s = msg.state else { return }
-        model.state = s
-        let sel = s.view == "home" ? 0 : s.setId
+        if model.state != s { model.state = s }  // the schedule's timer re-posts every second
+        let sel = s.view == "home" ? 0 : s.view == "plan" ? -1 : s.setId
         if model.selected != sel { model.selected = sel }
         window.title = s.title
         window.subtitle = s.subtitle
@@ -463,6 +464,7 @@ final class WebPane: NSViewController {
     @objc func resetSet(_ s: Any?) { page("reset", model.state.setId) }
     @objc func deleteSet(_ s: Any?) { page("del", model.state.setId) }
     @objc func showSettings(_ s: Any?) { page("settings") }
+    @objc func go(_ s: NSMenuItem) { page(s.representedObject as! String) }
     @objc func answerPicked(_ s: NSSegmentedControl) { page("answer", App.modes[s.selectedSegment]) }
     @objc func answerMenu(_ s: NSMenuItem) { page("answer", App.modes[s.tag]) }
     @objc func press(_ s: NSMenuItem) { page("press", s.representedObject) }
@@ -482,12 +484,14 @@ final class WebPane: NSViewController {
     @objc func exportSets(_ s: Any?) {
         web.callAsyncJavaScript("return exportJSON()", arguments: [:], in: nil, in: .page) { r in
             guard case .success(let v) = r, let text = v as? String else { return }
-            let p = NSSavePanel(); p.allowedContentTypes = [.json]
-            p.nameFieldStringValue = "Drill sets \(ISO8601DateFormatter.string(from: Date(), timeZone: .current, formatOptions: .withFullDate)).json"
-            p.beginSheetModal(for: self.window.attachedSheet ?? self.window) { r in
-                guard r == .OK, let u = p.url else { return }
-                do { try text.write(to: u, atomically: true, encoding: .utf8) } catch { self.alert("Couldn't save: \(error.localizedDescription)") }
-            }
+            self.saveFile(text, "Drill sets \(ISO8601DateFormatter.string(from: Date(), timeZone: .current, formatOptions: .withFullDate)).json")
+        }
+    }
+    func saveFile(_ text: String, _ name: String) {
+        let p = NSSavePanel(); p.allowedContentTypes = [.json]; p.nameFieldStringValue = name
+        p.beginSheetModal(for: window.attachedSheet ?? window) { r in
+            guard r == .OK, let u = p.url else { return }
+            do { try text.write(to: u, atomically: true, encoding: .utf8) } catch { self.alert("Couldn't save: \(error.localizedDescription)") }
         }
     }
     func alert(_ text: String) { let a = NSAlert(); a.messageText = text; a.beginSheetModal(for: window.attachedSheet ?? window) }
@@ -495,7 +499,7 @@ final class WebPane: NSViewController {
     func enabled(_ action: Selector?, _ rep: Any? = nil) -> Bool {
         let s = model.state
         let behindSheet: [Selector] = [#selector(newSet(_:)), #selector(studySet(_:)), #selector(editSet(_:)), #selector(optimizeSet(_:)), #selector(resetSet(_:)),
-                                       #selector(deleteSet(_:)), #selector(showSettings(_:)), #selector(answerMenu(_:)), #selector(press(_:)), #selector(importSets(_:))]
+                                       #selector(deleteSet(_:)), #selector(showSettings(_:)), #selector(go(_:)), #selector(answerMenu(_:)), #selector(press(_:)), #selector(importSets(_:))]
         if sheet != nil, let a = action, behindSheet.contains(a) { return false }  // the main window waits while a sheet is up
         switch action {
         case #selector(studySet(_:)), #selector(editSet(_:)), #selector(resetSet(_:)), #selector(deleteSet(_:)): return s.setId != nil
@@ -547,7 +551,9 @@ final class WebPane: NSViewController {
                           item("Memory Hook", #selector(press(_:)), rep: "hook"),
                           item("I Was Right", #selector(press(_:)), rep: "override"),
                           item("Report Bad Question", #selector(press(_:)), rep: "flag")])
-        _ = add("View", [item("Show Sidebar", #selector(NSSplitViewController.toggleSidebar(_:)), "s", [.command, .control]), .separator(),
+        _ = add("View", [item("All Sets", #selector(go(_:)), "1", [.command, .option], rep: "home"),
+                         item("Schedule", #selector(go(_:)), "2", [.command, .option], rep: "plan"), .separator(),
+                         item("Show Sidebar", #selector(NSSplitViewController.toggleSidebar(_:)), "s", [.command, .control]), .separator(),
                          item("Actual Size", #selector(zoom(_:)), "0", tag: 0), item("Zoom In", #selector(zoom(_:)), "=", tag: 1),
                          item("Zoom Out", #selector(zoom(_:)), "-", tag: -1), .separator(),
                          item("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control])])
