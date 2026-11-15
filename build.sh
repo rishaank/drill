@@ -12,10 +12,11 @@ rm -rf "$B" dist
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$B/dmg" dist
 
 for arch in arm64 x86_64; do
-  swiftc -O -swift-version 5 -target "$arch-apple-macos13.3" -o "$B/Drill-$arch" Sources/*.swift
+  swiftc -O -swift-version 5 -target "$arch-apple-macos13.3" -Xlinker -weak_framework -Xlinker FoundationModels -o "$B/Drill-$arch" Sources/*.swift
 done
 lipo -create "$B/Drill-arm64" "$B/Drill-x86_64" -output "$APP/Contents/MacOS/Drill"
-cp AppIcon.icns "$APP/Contents/Resources/"
+cp AppIcon.icns drill-set.skill "$APP/Contents/Resources/"
+unzip -p drill-set.skill drill-set/SKILL.md > "$APP/Contents/Resources/drill-set.md"  # the same instructions as a prompt for any chatbot
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

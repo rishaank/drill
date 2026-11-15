@@ -4,7 +4,7 @@ A flashcard app for Mac with a "learn" mode that climbs each card from multiple 
 
 Works fully offline without AI. Your sets stay on your Mac.
 
-A **Schedule** tab plans your day: drag out focus blocks, the gaps become breaks, and a timer counts down whichever one is now.
+A **Schedule** tab plans your day: drag out focus blocks, the gaps become breaks, and a timer counts down whichever one is now. Blocks take the usual keys: ⌘A, ⌘C, ⌘X, ⌘V, ⌘D, Delete, arrow keys to move, Shift-arrows to resize, Return to rename and ⌘Z to undo.
 
 ![Drill's home screen: the next set to study, a day streak, and every set with its progress](screenshot.png)
 
@@ -34,10 +34,11 @@ You only do steps 3–4 once.
 
 ## AI (optional)
 
-Turn it on in the welcome screen or in **Drill → Settings…** (⌘,), then pick a provider:
+On a Mac with Apple Intelligence, AI is on from the start and runs privately on your Mac: free, offline, no account. Otherwise turn it on in the welcome screen or in **Drill → Settings…** (⌘,) and pick a provider:
 
 | Provider | Tag | What you need |
 |---|---|---|
+| Apple Intelligence | Free · On This Mac | macOS 26 or later with Apple Intelligence turned on |
 | Claude Code | Your Claude plan | The [Claude Code](https://claude.com/claude-code) app, logged in. Counts toward your plan's limits. |
 | Google Gemini | Free Online | A free key from [Google AI Studio](https://aistudio.google.com/apikey) |
 | Groq | Free Online | A free key from [Groq](https://console.groq.com/keys) |
@@ -52,9 +53,9 @@ API keys are saved only on your Mac (`~/Library/Application Support/Drill/keys.j
 
 ## Moving your sets
 
-**File → Export All Sets…** (⇧⌘E) saves every set, with your progress, to one file. **File → Import Sets…** (⌘O) loads it on another Mac. Import also accepts single Drill set files.
+**File → Export All Sets…** (⇧⌘E) saves every set, with your progress, to one file. **File → Import Sets…** (⌘O) loads it on another Mac, or drop the file onto Drill's window. Drill set files import the same way; a notes or CSV file dropped on the window opens as a new set.
 
-If you use Claude, [`drill-set.skill`](drill-set.skill) is a Claude skill that turns notes, PDFs or word lists into a ready-to-study Drill set file you can paste into **File → New Set** (⌘N).
+To have a chatbot build a set for you, use **File → Make a Set with a Chatbot**: copy a prompt for any chatbot, or save [`drill-set.skill`](drill-set.skill) to add to Claude. Either turns notes, PDFs or word lists into a ready-to-study Drill set file you paste into **File → New Set** (⌘N) or drop onto the window.
 
 ## Build it yourself
 

@@ -148,7 +148,7 @@ struct Job {
                 try AI.ready(cfg)
                 var next = 0
                 try await withThrowingTaskGroup(of: Void.self) { g in
-                    for _ in 0..<3 {  // 3 batches in flight: ~3× faster, still gentle on your plan's limits
+                    for _ in 0..<(cfg.provider == "apple" ? 1 : 3) {  // 3 batches in flight: ~3× faster, still gentle on your plan's limits (the on-device model runs one at a time)
                         g.addTask { @MainActor in
                             while next < batches.count {
                                 try Task.checkCancellation()
@@ -198,9 +198,10 @@ struct EditorView: View {
     @State private var confirmReopt = false
     @State private var opening = false
     @State private var noCards = false
+    @State private var note: String?
     var kind: SheetKind
     @FocusState private var focus: Field?
-    enum Field { case name, raw }
+    enum Field { case name }
 
     init(kind: SheetKind) {
         self.kind = kind
@@ -209,69 +210,19 @@ struct EditorView: View {
     }
 
     var body: some View {
-        let cards = m.cards
         VStack(spacing: 0) {
-            Form {
-                Section {
-                    TextField("Title", text: $m.name, prompt: Text("AP Bio, Unit 2: Cells")).focused($focus, equals: .name)
-                }
-                Section {
-                    TextEditor(text: $m.raw)
-                        .font(.system(size: 12.5, design: .monospaced)).frame(minHeight: 200)
-                        .focused($focus, equals: .raw).disabled(m.running)
-                        .onChange(of: m.raw) { _ in m.rawChanged() }
-                    HStack {
-                        Picker("Between term and definition", selection: $m.sep) {
-                            Text("Detect Automatically").tag("auto"); Text("Tab").tag("tab"); Text("Dash ( - )").tag("dash"); Text("Colon ( : )").tag("colon"); Text("Comma ( , )").tag("comma")
-                        }
-                        Picker("Between cards", selection: $m.cardSep) { Text("New Line").tag("nl"); Text("Semicolon ( ; )").tag("semi") }
-                    }
-                } header: {
-                    HStack { Text("Cards, one per line: the term, then its definition. Messy notes work too; the AI can sort them."); Spacer(); Text(plural(cards.count, "card")).foregroundStyle(Color.drill).monospacedDigit() }
-                } footer: {
-                    VStack(spacing: 6) {
-                    HStack(spacing: 8) {
-                        Button("Open File…") { opening = true }
-                        Spacer()
-                        Group {
-                            Button { m.generate(fix: true) } label: { Label("Fix Formatting", systemImage: "sparkles") }
-                                .help("Paste anything (a copied web page, table, messy list) and the AI rearranges it into term and definition cards without changing the wording")
-                            Button { m.generate(fix: false) } label: { Label("Turn Notes into Cards", systemImage: "sparkles") }.help("Uses AI to turn pasted notes into cards")
-                            Button { if cards.allSatisfy({ m.ai($0.t, $0.d) != nil }) { confirmReopt = true } else { m.optimize() } } label: { Label("Optimize for Studying", systemImage: "sparkles") }
-                                .help("AI picks the best question types for each card and writes true/false, select-all and multiple-choice material")
-                        }
-                        .disabled(m.running || m.raw.trimmed.isEmpty || !store.lib.cfg.ai)
-                    }
-                    .glassButton().padding(.top, 6)
-                    if !store.lib.cfg.ai { Text("The AI tools need AI turned on in Drill → Settings → AI.").font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .trailing) }
-                    }
-                }
-                if let job = m.job { Section { JobView(job: job, stop: m.stop, close: { m.job = nil }, undo: m.undoNotes.map { n in { m.raw = n; m.sep = "auto"; m.job = nil; m.undoNotes = nil } }) } }
-                if !cards.isEmpty {
-                    Section("Preview") {
-                        ForEach(Array(cards.prefix(300).enumerated()), id: \.offset) { _, c in
-                            HStack(alignment: .firstTextBaseline, spacing: 14) {
-                                Text(c.t).fontWeight(.semibold).frame(width: 180, alignment: .leading).lineLimit(2)
-                                Text(c.d).foregroundStyle(.secondary).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
-                                if let a = m.ai(c.t, c.d) { Text(a.kind).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.drill).help("Question style the AI picked") }
-                            }
-                            .font(.system(size: 13))
-                        }
-                    }
-                }
-            }
-            .formStyle(.grouped)
-        }
-        .frame(minWidth: 680, idealWidth: 760, minHeight: 560, idealHeight: 700)
-        .navigationTitle(m.editing == nil ? "New Set" : "Edit Set")
-        .toolbar {
-            ToolbarItem(placement: .principal) { Text(m.editing == nil ? "New Set" : "Edit Set").font(.headline) }
-            ToolbarItem(placement: .cancellationAction) { Button("Cancel") { if m.dirty { confirmDiscard = true } else { close(nil) } } }
-            ToolbarItem(placement: .confirmationAction) {
+            content
+            HStack(spacing: 10) {
+                Spacer()
+                Button("Cancel") { if m.dirty { confirmDiscard = true } else { close(nil) } }.glassButton().keyboardShortcut(.cancelAction)
                 Button("Save") { if let id = m.save() { close(m.editing == nil ? id : nil) } else { noCards = true } }
-                    .keyboardShortcut("s").disabled(m.running)
+                    .glassButton(prominent: true).keyboardShortcut("s").disabled(m.running)
             }
+            .controlSize(.large).padding(.horizontal, 28).padding(.vertical, 16)
         }
+        .onDrop(of: [.fileURL], isTargeted: nil) { items in loadDropped(items, take) }
+        .alert(note ?? "", isPresented: Binding(get: { note != nil }, set: { if !$0 { note = nil } })) { Button("OK") {} }
+        .frame(minWidth: 720, idealWidth: 760, minHeight: 560, idealHeight: 700)
         .confirmationDialog("Discard your changes to this set?", isPresented: $confirmDiscard) {
             Button("Discard Changes", role: .destructive) { m.stop(); close(nil) }
         }
@@ -282,18 +233,180 @@ struct EditorView: View {
         .fileImporter(isPresented: $opening, allowedContentTypes: [.plainText, .commaSeparatedText, .tabSeparatedText, .json]) { r in
             guard case .success(let url) = r else { return }
             let ok = url.startAccessingSecurityScopedResource(); defer { if ok { url.stopAccessingSecurityScopedResource() } }
-            if let t = try? String(contentsOf: url, encoding: .utf8) { m.raw = t; if m.name.isEmpty { m.name = url.deletingPathExtension().lastPathComponent } }
+            if let t = try? String(contentsOf: url, encoding: .utf8) { take(url, t) }
         }
         .onAppear {
-            focus = m.editing == nil ? .name : .raw
+            if let d = nav.dropped { m.raw = d.text; if m.name.isEmpty { m.name = d.name }; nav.dropped = nil }
+            if m.editing == nil && m.name.isEmpty { focus = .name }
             if case .optimize = kind { m.optimize() }
         }
         .onDisappear { m.stop() }
+    }
+    func take(_ url: URL, _ text: String) { m.raw = text; if m.name.isEmpty { m.name = url.deletingPathExtension().deletingPathExtension().lastPathComponent } }
+
+    var content: some View {
+        let cards = m.cards, ai = store.lib.cfg.ai
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: 4) {
+                    TextField("Title", text: $m.name, prompt: Text("Title"))
+                        .textFieldStyle(.plain).font(.system(size: 30, weight: .bold)).focused($focus, equals: .name)
+                    Text(cards.isEmpty ? "No cards yet" : plural(cards.count, "card")).foregroundStyle(.secondary).monospacedDigit()
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    DropText(text: $m.raw, focus: m.editing != nil, drop: take)
+                        .padding(.vertical, 10).padding(.horizontal, 5).frame(height: 230)
+                        .overlay(alignment: .topLeading) {
+                            if m.raw.isEmpty {
+                                Text("Term, then definition. One card per line.\nMessy notes, a pasted table or a Drill set file work too.")
+                                    .font(.system(size: 13, design: .monospaced)).foregroundStyle(.tertiary).padding(.leading, 15).padding(.top, 10).allowsHitTesting(false)
+                            }
+                        }
+                        .card(14)
+                        .disabled(m.running)
+                        .onChange(of: m.raw) { _ in m.rawChanged() }
+                    HStack(spacing: 6) {
+                        Text("Terms split by").foregroundStyle(.secondary).fixedSize()
+                        Picker("Terms split by", selection: $m.sep) {
+                            Text("Auto").tag("auto"); Text("Tab").tag("tab"); Text("Dash").tag("dash"); Text("Colon").tag("colon"); Text("Comma").tag("comma")
+                        }.labelsHidden().fixedSize()
+                        Text("Cards split by").foregroundStyle(.secondary).fixedSize().padding(.leading, 10)
+                        Picker("Cards split by", selection: $m.cardSep) { Text("New Line").tag("nl"); Text("Semicolon").tag("semi") }.labelsHidden().fixedSize()
+                        Spacer(minLength: 12)
+                        HStack(spacing: 8) {
+                            Button { opening = true } label: { Label("Open File…", systemImage: "doc") }
+                            Menu {
+                                Button("Copy Prompt for Any Chatbot") { Chatbot.copyPrompt(); note = Chatbot.copied }
+                                Button("Save Skill for Claude…") { if Chatbot.saveSkill() { note = Chatbot.saved } }
+                            } label: { Label("Use a Chatbot", systemImage: "bubble.left.and.text.bubble.right") }
+                                .help("Have ChatGPT, Gemini or Claude write a ready-to-study set, then paste or drop its reply here")
+                        }
+                        .font(.body).controlSize(.regular).glassButton().fixedSize().disabled(m.running)
+                    }
+                    .font(.system(size: 12)).controlSize(.small)
+                }
+
+                HStack(spacing: 8) {
+                    if ai {
+                        Button { m.generate(fix: true) } label: { Label("Fix Formatting", systemImage: "wand.and.stars") }
+                            .help("Rearranges a pasted page, table or messy list into cards, keeping the wording")
+                            .disabled(m.raw.trimmed.isEmpty)
+                        Button { m.generate(fix: false) } label: { Label("Notes to Cards", systemImage: "text.badge.plus") }
+                            .help("Writes cards from pasted notes")
+                            .disabled(m.raw.trimmed.isEmpty)
+                        Button { if cards.allSatisfy({ m.ai($0.t, $0.d) != nil }) { confirmReopt = true } else { m.optimize() } } label: { Label("Optimize for Studying", systemImage: "sparkles") }
+                            .help("Picks the best question types for each card and writes true/false, select-all and multiple-choice material")
+                            .disabled(cards.isEmpty)
+                    } else {
+                        Button { store.lib.cfg.ai = true } label: { Label("Turn On AI Tools", systemImage: "sparkles") }
+                            .help("Fix formatting, turn notes into cards and optimize sets. Change the AI in Settings.")
+                    }
+                }
+                .glassButton().glassGroup().fixedSize()
+                .disabled(m.running)
+
+                if let job = m.job {
+                    JobView(job: job, stop: m.stop, close: { m.job = nil }, undo: m.undoNotes.map { n in { m.raw = n; m.sep = "auto"; m.job = nil; m.undoNotes = nil } })
+                        .padding(16).card(14).transition(.opacity.combined(with: .move(edge: .top)))
+                }
+
+                if !cards.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Preview").font(.headline)
+                        LazyVStack(spacing: 0) {
+                            ForEach(Array(cards.prefix(300).enumerated()), id: \.offset) { i, c in
+                                if i > 0 { Divider().padding(.leading, 16) }
+                                HStack(alignment: .firstTextBaseline, spacing: 16) {
+                                    Text(c.t).fontWeight(.semibold).frame(width: 190, alignment: .leading).lineLimit(2)
+                                    Text(c.d).foregroundStyle(.secondary).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
+                                    if let a = m.ai(c.t, c.d) { Text(a.kind.capitalized).font(.system(size: 11.5, weight: .medium)).foregroundStyle(Color.drill).help("Question style the AI picked") }
+                                }
+                                .font(.system(size: 13)).padding(.horizontal, 16).padding(.vertical, 9)
+                            }
+                        }
+                        .card(14)
+                    }
+                }
+            }
+            .padding(.horizontal, 28).padding(.vertical, 24)
+            .animation(.spring(response: 0.35, dampingFraction: 0.9), value: m.job == nil)
+        }
     }
     // A brand-new set opens straight into studying.
     func close(_ start: Int?) {
         dismiss()
         if let start { DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { nav.study(start) } }
+    }
+}
+
+// The drill-set skill, offered two ways: its instructions as a prompt for any chatbot, or the skill file for Claude.
+@MainActor enum Chatbot {
+    static let copied = "Prompt copied. Paste it into ChatGPT, Gemini or Claude, add your notes, then paste the reply into New Set."
+    static let saved = "Skill saved. In Claude, open Settings → Capabilities → Skills and upload it. Then ask Claude for a Drill set."
+    static func copyPrompt() {
+        guard let u = Bundle.main.url(forResource: "drill-set", withExtension: "md"), let s = try? String(contentsOf: u, encoding: .utf8) else { return }
+        let body = s.components(separatedBy: "\n---\n").dropFirst().joined(separator: "\n---\n")  // drop the skill's front matter
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("Make me a flashcard set for Drill by following these instructions. My material is at the end; if it's missing, ask me for it.\n\n" + body + "\n\n# My material\n\n", forType: .string)
+    }
+    static func saveSkill() -> Bool {
+        guard let src = Bundle.main.url(forResource: "drill-set", withExtension: "skill") else { return false }
+        let p = NSSavePanel(); p.nameFieldStringValue = "drill-set.skill"
+        guard p.runModal() == .OK, let u = p.url else { return false }
+        try? FileManager.default.removeItem(at: u)
+        return (try? FileManager.default.copyItem(at: src, to: u)) != nil
+    }
+}
+
+// Reads the first dropped file as text (Drill sets, exports, notes, CSV): the drop targets share this.
+func loadDropped(_ items: [NSItemProvider], _ take: @escaping @MainActor (URL, String) -> Void) -> Bool {
+    guard let item = items.first else { return false }
+    _ = item.loadObject(ofClass: URL.self) { url, _ in
+        guard let url, let text = try? String(contentsOf: url, encoding: .utf8) else { return }
+        DispatchQueue.main.async { take(url, text) }
+    }
+    return true
+}
+
+// The card text box: a plain NSTextView that takes a dropped file as the whole text (SwiftUI's TextEditor would insert the file's path).
+struct DropText: NSViewRepresentable {
+    @Binding var text: String
+    var focus: Bool
+    var drop: (URL, String) -> Void
+    final class TV: NSTextView {
+        var drop: (URL, String) -> Void = { _, _ in }
+        override func performDragOperation(_ s: NSDraggingInfo) -> Bool {
+            if let u = (s.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL])?.first {
+                if let t = try? String(contentsOf: u, encoding: .utf8) { drop(u, t) }
+                return true
+            }
+            return super.performDragOperation(s)
+        }
+    }
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        var text: Binding<String>
+        init(_ t: Binding<String>) { text = t }
+        func textDidChange(_ n: Notification) { text.wrappedValue = (n.object as! NSTextView).string }
+    }
+    func makeCoordinator() -> Coordinator { Coordinator($text) }
+    func makeNSView(context: Context) -> NSScrollView {
+        let sv = NSScrollView(), tv = TV()
+        tv.isRichText = false; tv.allowsUndo = true; tv.drawsBackground = false
+        tv.isAutomaticQuoteSubstitutionEnabled = false; tv.isAutomaticDashSubstitutionEnabled = false; tv.isAutomaticTextReplacementEnabled = false
+        tv.font = .monospacedSystemFont(ofSize: 13, weight: .regular); tv.textContainerInset = NSSize(width: 0, height: 0)
+        tv.isVerticallyResizable = true; tv.autoresizingMask = .width; tv.textContainer?.widthTracksTextView = true
+        tv.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
+        tv.string = text; tv.delegate = context.coordinator
+        sv.documentView = tv; sv.hasVerticalScroller = true; sv.drawsBackground = false; sv.autohidesScrollers = true
+        if focus { DispatchQueue.main.async { tv.window?.makeFirstResponder(tv) } }
+        return sv
+    }
+    func updateNSView(_ sv: NSScrollView, context: Context) {
+        let tv = sv.documentView as! TV
+        context.coordinator.text = $text; tv.drop = drop
+        tv.isEditable = context.environment.isEnabled
+        if tv.string != text { tv.string = text }
     }
 }
 

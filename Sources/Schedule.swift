@@ -76,7 +76,7 @@ struct ScheduleView: View {
     @State private var restoring = false
     @State private var clearing = false
     @FocusState private var titleFocus: String?
-    @FocusState private var boardFocus: Bool
+    @State private var keyTick = 0  // bump to give the board the keyboard
 
     var plan: Plan { store.lib.plan }
     var blocks: [Block] { plan.blocks }
@@ -197,7 +197,7 @@ struct ScheduleView: View {
                             let m = toMinSnap(v.location.y)
                             if drag == nil {
                                 let a = toMinSnap(v.startLocation.y)
-                                selection = []; editing = nil; boardFocus = true
+                                selection = []; editing = nil; keyTick += 1
                                 drag = Drag(mode: .create, anchor: a, baseline: blocks, ids: [], lo: a, hi: min(dayEnd, a + 30))
                             }
                             guard var d = drag, d.mode == .create else { return }
@@ -278,13 +278,60 @@ struct ScheduleView: View {
                     .glass(Capsule()).padding(.bottom, 14).transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .focusable().focused($boardFocus).modifier(NoFocusRing())
-        .onDeleteCommand {
-            guard editing == nil, !selection.isEmpty else { return }
-            change(selection.count > 1 ? "Delete Blocks" : "Delete Block") { $0.removeAll { selection.contains($0.id) } }; selection = []
+        .background(KeyCatcher(tick: keyTick, handle: key, editingKey: editingKey))
+        .onAppear { keyTick += 1 }  // take the keys from the sidebar, like Calendar
+    }
+
+    // Every key and Edit menu command the board answers.
+    func key(_ c: KeyCatcher.Cmd) -> Bool {
+        if c == .esc { if let d = drag { store.lib.plan.blocks = d.baseline; drag = nil } else { selection = [] }; return true }
+        guard editing == nil else { return false }
+        switch c {
+        case .selectAll: selection = Set(blocks.filter { $0.end > dayStart && $0.start < dayEnd }.map(\.id))  // what you can see
+        case .delete, .cut:
+            guard !selection.isEmpty else { return false }
+            if c == .cut { copySelection() }
+            let n = selection.count > 1 ? "Blocks" : "Block"
+            change(c == .cut ? "Cut \(n)" : "Delete \(n)") { $0.removeAll { selection.contains($0.id) } }; selection = []
+        case .copy: guard !selection.isEmpty else { return false }; copySelection()
+        case .paste:
+            guard let s = NSPasteboard.general.string(forType: .string), let bs = try? JSONDecoder().decode([Block].self, from: Data(s.utf8)), !bs.isEmpty else { return false }
+            place(bs, "Paste")
+        case .duplicate: guard !selection.isEmpty else { return false }; place(blocks.filter { selection.contains($0.id) }, "Duplicate")
+        case .up, .down, .longer, .shorter: guard !selection.isEmpty else { return false }; nudge(c)
+        case .rename:
+            guard selection.count == 1, let id = selection.first else { return false }
+            editing = id; DispatchQueue.main.async { titleFocus = id }
+        case .esc: break
         }
-        .onMoveCommand { dir in nudge(dir) }
-        .onExitCommand { if let d = drag { store.lib.plan.blocks = d.baseline; drag = nil } else { selection = [] } }
+        return true
+    }
+
+    // While a block's title is being typed: Esc finishes it, and while the title is still empty the board's
+    // shortcuts keep working (typing names the block; Delete, arrows, ⌘A/⌘C/⌘X/⌘V/⌘D act on it).
+    func editingKey(_ c: KeyCatcher.Cmd) -> Bool {
+        guard let id = editing else { return false }
+        if c == .esc { editing = nil; titleFocus = nil; keyTick += 1; return true }
+        guard c != .rename, blocks.first(where: { $0.id == id })?.title.isEmpty == true else { return false }
+        editing = nil
+        guard key(c) else { editing = id; return false }
+        titleFocus = nil; keyTick += 1
+        return true
+    }
+
+    // Selected blocks go on the clipboard as JSON text, so they paste back into the board.
+    func copySelection() {
+        guard let d = try? JSONEncoder().encode(blocks.filter { selection.contains($0.id) }), let s = String(data: d, encoding: .utf8) else { return }
+        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(s, forType: .string)
+    }
+    // Copies land right after the selection (or at their own times when nothing is selected), keeping their spacing.
+    func place(_ src: [Block], _ name: String) {
+        guard editing == nil, let lo = src.map(\.start).min(), let hi = src.map(\.end).max() else { return }
+        let at = selection.isEmpty ? lo : (blocks.filter { selection.contains($0.id) }.map(\.end).max() ?? lo)
+        let shift = max(dayStart - lo, min(dayEnd - hi, at - lo))
+        let new = src.map { Block(start: $0.start + shift, end: $0.end + shift, title: $0.title) }
+        change(name) { b in b += new; b = resolve(b, active: Set(new.map(\.id))) }
+        selection = Set(new.map(\.id))
     }
 
     func guide(_ label: String, color: Color, solid: Bool) -> some View {
@@ -311,7 +358,7 @@ struct ScheduleView: View {
                 }))
                 .textFieldStyle(.plain).font(.system(size: tiny ? 10.5 : one ? 12 : 13.5, weight: .semibold))
                 .focused($titleFocus, equals: b.id)
-                .onSubmit { editing = nil; selection = []; boardFocus = true }
+                .onSubmit { editing = nil; selection = []; keyTick += 1 }
                 .onChange(of: titleFocus) { f in if f != b.id && editing == b.id { editing = nil } }
             } else {
                 Text(b.title.isEmpty ? "Untitled" : b.title).font(.system(size: tiny ? 10.5 : one ? 12 : 13.5, weight: .semibold))
@@ -337,7 +384,7 @@ struct ScheduleView: View {
         .onTapGesture {
             let mods = NSEvent.modifierFlags
             if mods.contains(.shift) || mods.contains(.command) { if sel { selection.remove(b.id) } else { selection.insert(b.id) } } else { selection = [b.id] }
-            editing = nil; boardFocus = true
+            editing = nil; keyTick += 1
         }
         .gesture(DragGesture(minimumDistance: 3, coordinateSpace: .named("board")).onChanged { v in drive(v, b, .move, toMin) }.onEnded { _ in endDrag() })
         .overlay(alignment: .top) { if h >= 18 { grip(b, .top, toMin) } }
@@ -386,9 +433,8 @@ struct ScheduleView: View {
         if store.lib.plan.blocks != d.baseline { register(d.baseline, d.mode == .move ? "Move" : "Resize") }
     }
     // ↑↓ move the selection by 15 minutes; with Shift, they change its length.
-    func nudge(_ dir: MoveCommandDirection) {
-        guard editing == nil, !selection.isEmpty, dir == .up || dir == .down else { return }
-        let step = dir == .up ? -SNAP : SNAP, shift = NSEvent.modifierFlags.contains(.shift)
+    func nudge(_ c: KeyCatcher.Cmd) {
+        let step = c == .up || c == .shorter ? -SNAP : SNAP, shift = c == .longer || c == .shorter
         change(shift ? "Resize" : "Move") { bs in
             let sel = bs.filter { selection.contains($0.id) }
             if shift {
@@ -413,6 +459,58 @@ struct ScheduleView: View {
 }
 
 struct Line: Shape { func path(in r: CGRect) -> Path { Path { $0.move(to: CGPoint(x: 0, y: r.midY)); $0.addLine(to: CGPoint(x: r.maxX, y: r.midY)) } } }
+// An invisible AppKit view that holds the board's keyboard focus and answers the Edit menu (SwiftUI focus wouldn't take it from the sidebar).
+struct KeyCatcher: NSViewRepresentable {
+    enum Cmd { case selectAll, copy, cut, paste, duplicate, delete, up, down, longer, shorter, rename, esc }
+    var tick: Int
+    var handle: (Cmd) -> Bool
+    var editingKey: (Cmd) -> Bool
+    static func cmd(_ e: NSEvent) -> Cmd? {
+        let f = e.modifierFlags.intersection(.deviceIndependentFlagsMask), shift = f.contains(.shift)
+        if f.contains(.command) { return f.subtracting(.shift) == .command ? ["a": .selectAll, "c": .copy, "x": .cut, "v": .paste, "d": .duplicate][e.charactersIgnoringModifiers?.lowercased() ?? ""] : nil }
+        switch e.keyCode {
+        case 51, 117: return .delete
+        case 126: return shift ? .shorter : .up
+        case 125: return shift ? .longer : .down
+        case 36, 76: return .rename
+        case 53: return .esc
+        default: return nil
+        }
+    }
+    final class V: NSView {
+        var handle: (Cmd) -> Bool = { _ in false }
+        var editingKey: (Cmd) -> Bool = { _ in false }
+        var tick = -1
+        var monitor: Any?
+        override var acceptsFirstResponder: Bool { true }
+        override func keyDown(with e: NSEvent) {
+            if let c = KeyCatcher.cmd(e), handle(c) { return }
+            super.keyDown(with: e)
+        }
+        // A block's title field has the keys while it's being typed, so the board looks at them first.
+        override func viewDidMoveToWindow() {
+            if let monitor { NSEvent.removeMonitor(monitor); self.monitor = nil }
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
+                guard let self, e.window === self.window, self.window?.firstResponder !== self, let c = KeyCatcher.cmd(e) else { return e }
+                return self.editingKey(c) ? nil : e
+            }
+        }
+        override func selectAll(_ s: Any?) { _ = handle(.selectAll) }
+        @objc func copy(_ s: Any?) { _ = handle(.copy) }
+        @objc func cut(_ s: Any?) { _ = handle(.cut) }
+        @objc func paste(_ s: Any?) { _ = handle(.paste) }
+        @objc func delete(_ s: Any?) { _ = handle(.delete) }
+        @objc(duplicateDocument:) func duplicate(_ s: Any?) { _ = handle(.duplicate) }  // what the Duplicate menu item sends
+    }
+    func makeNSView(context: Context) -> V { V() }
+    func updateNSView(_ v: V, context: Context) {
+        v.handle = handle; v.editingKey = editingKey
+        guard v.tick != tick else { return }
+        v.tick = tick
+        DispatchQueue.main.async { v.window?.makeFirstResponder(v) }
+    }
+}
 struct NoFocusRing: ViewModifier {
     func body(content: Content) -> some View { if #available(macOS 14, *) { content.focusEffectDisabled() } else { content } }
 }

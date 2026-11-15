@@ -24,10 +24,12 @@ extension Font {
 }
 
 extension View {
-    // A real glass button on macOS 26; a bordered one before. Only the main action is tinted; the rest are plain glass.
+    // A real glass capsule on macOS 26; a bordered one before. Only the main action is tinted; the rest are plain glass.
     @ViewBuilder func glassButton(prominent: Bool = false, tint: Color = .drill) -> some View {
         if #available(macOS 26, *) {
-            if prominent { buttonStyle(.glassProminent).tint(tint) } else { buttonStyle(.glass).tint(nil) }
+            if prominent { buttonStyle(.glassProminent).tint(tint).buttonBorderShape(.capsule) } else { buttonStyle(.glass).tint(nil).buttonBorderShape(.capsule) }
+        } else if #available(macOS 14, *) {
+            if prominent { buttonStyle(.borderedProminent).tint(tint).buttonBorderShape(.capsule) } else { buttonStyle(.bordered).buttonBorderShape(.capsule) }
         } else {
             if prominent { buttonStyle(.borderedProminent).tint(tint) } else { buttonStyle(.bordered) }
         }

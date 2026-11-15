@@ -12,8 +12,9 @@ struct Provider {
     var model: String? = nil
     var pick: String? = nil  // regex for the model to choose when the default is missing
 }
-let PROVIDER_ORDER = ["claude", "gemini", "groq", "openrouter", "ollama", "lmstudio", "anthropic", "openai", "custom"]
+let PROVIDER_ORDER = ["apple", "claude", "gemini", "groq", "openrouter", "ollama", "lmstudio", "anthropic", "openai", "custom"]
 let PROVIDERS: [String: Provider] = [
+    "apple": Provider(name: "Apple Intelligence", tag: "Free · On This Mac", hint: "Apple's model runs on this Mac: free, private, works offline, nothing to set up. Needs macOS 26 or later with Apple Intelligence turned on.", cls: "local", noKey: true, model: "Apple Intelligence"),
     "claude": Provider(name: "Claude Code", tag: "Your Claude plan", hint: "Uses the Claude Code app you already have: no key, and it counts toward your Claude plan's usage limits. Install Claude Code from claude.com/claude-code and log in once.", tier: true, noKey: true),
     "gemini": Provider(name: "Google Gemini", tag: "Free Online", hint: "Free with a Google account: make a key in Google AI Studio. The free tier has daily limits, and Google may use free-tier prompts to improve its products.", cls: "free", key: "https://aistudio.google.com/apikey", base: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-flash-latest"),
     "groq": Provider(name: "Groq", tag: "Free Online", hint: "Free key, very fast open models. Free accounts are rate-limited.", cls: "free", key: "https://console.groq.com/keys", base: "https://api.groq.com/openai/v1", model: "openai/gpt-oss-120b"),
@@ -165,6 +166,7 @@ func aiDict(_ a: AIData) -> [String: Any] {
 // MARK: parsing pasted cards
 // A Drill set file ({"drill":1,"name","cards":[{t,d,ai}]}) imports with its optimization already done.
 func parseJSONSet(_ text: String) -> [String: Any]? {
+    let text = text.trimmed.replacing("^```[a-zA-Z]*\\s*|\\s*```$", "")  // a chatbot's reply pasted with its code fence
     guard text.matches("^\\s*\\{"), let j = jsonObject(text) as? [String: Any], j["cards"] is [Any] else { return nil }
     return j
 }

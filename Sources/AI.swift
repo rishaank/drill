@@ -2,6 +2,9 @@
 //   claude = the Claude Code CLI, anthropic = Messages API (a forced tool returns JSON), anything else = OpenAI-compatible /chat/completions.
 // Keys live in a 0600 file, never the Keychain: an ad-hoc-signed app would hit a Keychain password prompt after every update.
 import Foundation
+#if canImport(FoundationModels)
+import FoundationModels
+#endif
 
 let MODEL_IDS = ["haiku": "claude-haiku-5-5", "sonnet": "claude-sonnet-5-5", "opus": "claude-opus-5-5"]
 let SYSTEM = "You are the study assistant inside Drill, a flashcard app. Follow the request exactly and output only what it asks for, as plain text with no Markdown (Drill shows text as-is)."
@@ -52,6 +55,8 @@ enum AI {
             let t = text; await MainActor.run { each(t) }
         }
         switch provider {
+        case "apple":  // snapshots are the whole reply so far, not chunks
+            try await apple(prompt, format) { t in text = t; await MainActor.run { each(t) } }
         case "claude": try await claudeCode(prompt, MODEL_IDS[model] ?? MODEL_IDS["sonnet"]!, format, out)
         case "anthropic": try await anthropic(prompt, MODEL_IDS[model] ?? MODEL_IDS["sonnet"]!, format, out)
         default: try await openAI(provider, base, model, prompt, format, out)
@@ -62,8 +67,50 @@ enum AI {
     // Before a long job: is the provider usable at all?
     static func ready(_ cfg: Config) throws {
         let p = cfg.prov
+        if cfg.provider == "apple", let why = appleUnavailable() { throw Fail(why) }
         if cfg.provider == "claude" && claudePath == nil { throw Fail("Claude Code isn't installed. Get it at claude.com/claude-code and log in once, or pick another AI provider in Settings.") }
         if !p.noKey && !p.optKey && loadKeys()[cfg.provider] == nil { throw Fail("Add your \(p.name) API key in Settings first.") }
+    }
+
+    // Apple's on-device model (macOS 26+): no key, no account, nothing leaves the Mac. nil = ready.
+    static func appleUnavailable() -> String? {
+        #if canImport(FoundationModels)
+        if #available(macOS 26, *) {
+            switch SystemLanguageModel.default.availability {
+            case .available: return nil
+            case .unavailable(.appleIntelligenceNotEnabled): return "Turn on Apple Intelligence in System Settings → Apple Intelligence & Siri, or pick another AI provider."
+            case .unavailable(.modelNotReady): return "Apple Intelligence is still downloading. Try again in a few minutes."
+            default: return "This Mac doesn't support Apple Intelligence. Pick another AI provider in Settings."
+            }
+        }
+        #endif
+        return "Apple Intelligence needs macOS 26 or later. Pick another AI provider in Settings."
+    }
+
+    static func apple(_ prompt: String, _ format: [String: Any]?, _ set: (String) async -> Void) async throws {
+        #if canImport(FoundationModels)
+        guard #available(macOS 26, *) else { throw Fail(appleUnavailable()!) }
+        if let why = appleUnavailable() { throw Fail(why) }
+        let session = LanguageModelSession(instructions: SYSTEM)
+        do {
+            if let format {  // the same JSON schema the other providers get, enforced while generating
+                let schema = try JSONDecoder().decode(GenerationSchema.self, from: Data(jsonString(format).utf8))
+                for try await s in session.streamResponse(to: prompt, schema: schema) { try Task.checkCancellation(); await set(s.rawContent.jsonString) }
+            } else {
+                for try await s in session.streamResponse(to: prompt) { try Task.checkCancellation(); await set(s.content) }
+            }
+        } catch let e as LanguageModelSession.GenerationError {
+            switch e {
+            case .exceededContextWindowSize: throw Fail("That's too much text for Apple Intelligence at once. Try a shorter piece, or a bigger AI provider.")
+            case .guardrailViolation, .refusal: throw Fail("Apple Intelligence declined this text. Try rewording it, or another AI provider.")
+            case .unsupportedLanguageOrLocale: throw Fail("Apple Intelligence doesn't support this language yet. Try another AI provider.")
+            case .rateLimited, .concurrentRequests: throw Fail("Apple Intelligence is busy. Try again in a moment.")
+            default: throw Fail(e.localizedDescription)
+            }
+        }
+        #else
+        throw Fail(appleUnavailable()!)
+        #endif
     }
 
     // Claude Code CLI, with every tool, plugin, hook and MCP server off: it can only write text. Usage counts against the user's Claude plan.

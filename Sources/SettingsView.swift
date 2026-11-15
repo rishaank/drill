@@ -3,13 +3,15 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var store: Store
+    @AppStorage("settingsTab") private var tab = "general"  // reopens where you left off
     var body: some View {
-        TabView {
-            GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }
-            Form { AISettings() }.formStyle(.grouped).tabItem { Label("AI", systemImage: "sparkles") }
+        TabView(selection: $tab) {
+            GeneralSettings().fit().tabItem { Label("General", systemImage: "gearshape") }.tag("general")
+            Form { AISettings() }.formStyle(.grouped).fit().tabItem { Label("AI", systemImage: "sparkles") }.tag("ai")
         }
         .frame(width: 520)
-        .frame(minHeight: 380)
+        .tint(.drill)
+        .animation(.spring(response: 0.35, dampingFraction: 0.9), value: store.lib.cfg.ai)
     }
 }
 
@@ -27,7 +29,7 @@ struct GeneralSettings: View {
             }
             Section {
                 LabeledContent("Your sets") {
-                    HStack { Button("Export All…") { exporting = true }; Button("Import…") { importing = true } }
+                    HStack { Button("Export All…") { exporting = true }; Button("Import…") { importing = true } }.glassButton()
                 }
             } footer: { Text("Exports keep your progress and AI optimization. Import also takes single Drill set files.") }
         }
@@ -57,7 +59,7 @@ struct AISettings: View {
     var body: some View {
         Section {
             Toggle(isOn: $store.lib.cfg.ai) {
-                Text("AI features"); Text("Grades answers by meaning, explains mistakes, writes memory hooks, builds and optimizes sets")
+                Text("AI"); Text("Grades answers by meaning, explains mistakes and builds sets")
             }
         }
         if cfg.ai {
@@ -81,7 +83,7 @@ struct AISettings: View {
                         }
                     }
                 }
-                if cfg.provider == "custom" || (p.noKey && !p.tier) {  // custom + local servers, whose port can differ
+                if cfg.provider == "custom" || (p.noKey && !p.tier && cfg.provider != "apple") {  // custom + local servers, whose port can differ
                     TextField("Server URL", text: Binding(get: { cfg.base }, set: { store.lib.cfg.bases[cfg.provider] = $0.trimmed }), prompt: Text("https://example.com/v1"))
                         .onSubmit(loadModels)
                 }
@@ -91,7 +93,7 @@ struct AISettings: View {
                     }
                     .pickerStyle(.segmented)
                     Text(MODEL_HINT[cfg.model] ?? "").font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                } else {
+                } else if cfg.provider != "apple" {
                     LabeledContent("Model") {
                         HStack {
                             TextField("", text: Binding(get: { cfg.model() }, set: { store.lib.cfg.models[cfg.provider] = $0.trimmed }), prompt: Text("Type or pick a model"))
@@ -103,7 +105,7 @@ struct AISettings: View {
                     }
                 }
                 HStack {
-                    Button("Test Connection", action: test).disabled(testing)
+                    Button("Test Connection", action: test).glassButton().disabled(testing)
                     if testing { ProgressView().controlSize(.small) }
                     if let status { Text(status.0).foregroundStyle(status.1).font(.system(size: 12)) }
                 }
@@ -115,7 +117,7 @@ struct AISettings: View {
     func refresh() {
         status = nil; key = ""; models = []
         keySaved = loadKeys()[cfg.provider] != nil
-        if !p.tier { loadModels() }
+        if !p.tier && cfg.provider != "apple" { loadModels() }
     }
     func saveKey() {
         let k = key.trimmed; guard !k.isEmpty else { return }
@@ -154,19 +156,25 @@ struct WelcomeView: View {
             VStack(spacing: 8) {
                 Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 72, height: 72)
                 Text("Welcome to Drill").font(.title.bold())
-                Text("Drill works fully without AI. Turn AI on to grade written answers by meaning, explain mistakes, write memory hooks and turn notes into sets. You can change this anytime in Settings.")
+                Text(store.lib.cfg.ai && store.lib.cfg.provider == "apple" ? "AI is on, running privately on this Mac. Change it anytime in Settings." : "Drill works fully without AI. Turn it on to grade answers by meaning, explain mistakes and build sets.")
                     .multilineTextAlignment(.center).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 30).padding(.top, 26)
-            Form { AISettings() }.formStyle(.grouped).scrollDisabled(false)
+            Form { AISettings() }.formStyle(.grouped).fit()
             HStack { Spacer(); Button("Get Started") { dismiss() }.glassButton(prominent: true).controlSize(.large).keyboardShortcut(.defaultAction) }
                 .padding(.horizontal, 20).padding(.bottom, 18)
         }
-        .frame(width: 540, height: store.lib.cfg.ai ? 640 : 420)
+        .frame(width: 540)
         .animation(.spring(response: 0.4, dampingFraction: 0.9), value: store.lib.cfg.ai)
         .onAppear {
-            // Defaults to Claude Code if it's installed, else the free Gemini tier.
-            if claudePath == nil && store.lib.cfg.provider == "claude" { store.lib.cfg.provider = "gemini" }
+            // On by default with Apple Intelligence: free, private, no setup. Otherwise off, set to Claude Code if it's installed, else the free Gemini tier.
+            if AI.appleUnavailable() == nil { store.lib.cfg.provider = "apple"; store.lib.cfg.ai = true }
+            else if claudePath == nil && store.lib.cfg.provider == "claude" { store.lib.cfg.provider = "gemini" }
         }
     }
+}
+
+extension View {
+    // A settings pane as tall as its rows, so the window fits it with no empty space below.
+    func fit() -> some View { scrollDisabled(true).fixedSize(horizontal: false, vertical: true) }
 }

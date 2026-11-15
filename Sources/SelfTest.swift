@@ -38,6 +38,8 @@ import SwiftUI
     let raw = ((parseJSONSet(js)?["cards"] as? [[String: Any]])?.first?["ai"] as? [String: Any]) ?? [:]
     let ca = cleanAI(raw, t: "Mitochondria", d: "Makes ATP")
     A(ca.kind == "vocab" && ca.wrong == ["Ribosome"] && ca.notes?["Ribosome"] == "Builds proteins" && ca.hook == "Mighty Kondria" && cleanAI(["kind": "evil"], t: "X", d: "y").kind == "vocab", "cleanAI sanitizes")
+    A(parseCards("```json\n" + js + "\n```").count == 1, "chatbot reply with a code fence")
+    A(PROVIDER_ORDER.first == "apple" && PROVIDER_ORDER.allSatisfy { PROVIDERS[$0] != nil }, "providers")
     A(parseCards("Mitochondria - Makes ATP\nRibosome - Makes proteins").count == 2 && parseCards("a,b;c,d", cardSep: "semi").count == 2, "separators")
 
     let T = Calendar.current.date(from: DateComponents(year: 2026, month: 11, day: 13, hour: 12))!
@@ -98,6 +100,16 @@ import SwiftUI
     case "edit": if let s = store.lib.sets.first { nav.open(s.id); nav.sheet = .edit(s.id) }
     case "settings":  // the same menu item ⌘, uses
         if let i = NSApp.mainMenu?.items.first?.submenu?.items.first(where: { $0.title.hasPrefix("Settings") }), let a = i.action { NSApp.sendAction(a, to: i.target, from: i) }
+    case "apple":  // the on-device model end to end: plain text, then an Optimize batch (needs Apple Intelligence on)
+        Task { @MainActor in
+            var c = store.lib.cfg; c.provider = "apple"
+            do {
+                print("apple text:", try await AI.stream("Reply with exactly: ok", cfg: c))
+                let t = try await AI.stream(BATCH_PROMPT(sampleSet.cards.prefix(3).map { face($0.t, $0.d) }, ""), cfg: c, task: "build", format: BATCH_SCHEMA)
+                print("apple batch:", ((jsonObject(t) as? [String: Any])?["cards"] as? [Any])?.count ?? 0, "cards")
+            } catch { print("FAILED: apple", aiErr(error)) }
+            fflush(stdout); NSApp.terminate(nil)
+        }
     case "light": NSApp.appearance = NSAppearance(named: .aqua); nav.route = .all
     case "study", "mc":
         guard let s = what == "mc" ? store.lib.sets.last : store.lib.sets.first else { break }

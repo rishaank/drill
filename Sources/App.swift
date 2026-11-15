@@ -21,6 +21,7 @@ enum SheetKind: Identifiable, Hashable {
     @Published var studying: Int?
     @Published var sheet: SheetKind?
     @Published var importing = false
+    var dropped: (name: String, text: String)?  // a dropped notes file waiting for the New Set sheet
     @Published var exporting = false
     @Published var confirm: Confirm?
     let session = SessionBox()
@@ -50,6 +51,7 @@ struct Root: View {
     @EnvironmentObject var store: Store
     @EnvironmentObject var nav: Nav
     @State private var migrating = true
+    @State private var dropping = false
 
     var body: some View {
         NavigationSplitView {
@@ -74,18 +76,33 @@ struct Root: View {
         }
         .alert(nav.confirm?.title ?? "", isPresented: Binding(get: { nav.confirm != nil }, set: { if !$0 { nav.confirm = nil } }), presenting: nav.confirm) { c in
             Button(c.action, role: c.action.hasPrefix("Delete") || c.action.hasPrefix("Clear") || c.action.hasPrefix("Reset") ? .destructive : nil) { c.run() }
-            Button("Cancel", role: .cancel) {}
+            if c.action != "OK" { Button("Cancel", role: .cancel) {} }
         } message: { c in Text(c.message) }
-        .fileImporter(isPresented: $nav.importing, allowedContentTypes: [.json]) { r in
+        .fileImporter(isPresented: $nav.importing, allowedContentTypes: [.json, .plainText, .commaSeparatedText, .tabSeparatedText]) { r in
             guard case .success(let url) = r else { return }
             let ok = url.startAccessingSecurityScopedResource(); defer { if ok { url.stopAccessingSecurityScopedResource() } }
-            let n = (try? String(contentsOf: url, encoding: .utf8)).map(store.importText) ?? 0
-            nav.confirm = Confirm(title: n > 0 ? "Imported \(plural(n, "set"))." : "That file isn't a Drill export or set file.", message: "", action: "OK", run: {})
+            if let t = try? String(contentsOf: url, encoding: .utf8) { take(url, t) }
         }
+        // Drop a file anywhere in the window: Drill exports and set files import; anything else opens as a new set.
+        .onDrop(of: [.fileURL], isTargeted: $dropping) { items in nav.sheet == nil && loadDropped(items, take) }
+        .overlay {
+            if dropping {
+                Label("Drop to Add Sets", systemImage: "square.and.arrow.down").font(.title3.weight(.semibold))
+                    .padding(.horizontal, 22).padding(.vertical, 14).glass(Capsule())
+                    .frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.drill.opacity(0.08)).allowsHitTesting(false)
+            }
+        }
+        .animation(.easeOut(duration: 0.15), value: dropping)
         .fileExporter(isPresented: $nav.exporting, document: TextDoc(text: store.exportJSON()), contentType: .json,
                       defaultFilename: "Drill sets \(dayKey()).json") { _ in }
         .onChange(of: nav.route) { r in if case .set(let id) = r, id == nav.studying { return }; nav.studying = nil }
         .onAppear(perform: launch)
+    }
+
+    func take(_ url: URL, _ text: String) {
+        let n = store.importText(text)
+        if n > 0 { nav.route = .all; nav.confirm = Confirm(title: "Added \(plural(n, "set")).", message: "", action: "OK", run: {}); return }
+        nav.dropped = (url.deletingPathExtension().deletingPathExtension().lastPathComponent, text); nav.sheet = .new
     }
 
     func launch() {
@@ -209,8 +226,15 @@ struct DrillCommands: Commands {
         CommandGroup(replacing: .newItem) {
             Button("New Set") { nav.sheet = .new }.keyboardShortcut("n")
             Button("Import Sets…") { nav.importing = true }.keyboardShortcut("o")
+            Menu("Make a Set with a Chatbot") {
+                Button("Copy Prompt for Any Chatbot") { Chatbot.copyPrompt(); nav.confirm = Confirm(title: "Prompt copied", message: Chatbot.copied, action: "OK", run: {}) }
+                Button("Save Skill for Claude…") { if Chatbot.saveSkill() { nav.confirm = Confirm(title: "Skill saved", message: Chatbot.saved, action: "OK", run: {}) } }
+            }
             Divider()
             Button("Export All Sets…") { nav.exporting = true }.keyboardShortcut("e", modifiers: [.command, .shift])
+        }
+        CommandGroup(after: .pasteboard) {  // the Schedule board answers this through the responder chain
+            Button("Duplicate") { NSApp.sendAction(#selector(NSDocument.duplicate(_:)), to: nil, from: nil) }.keyboardShortcut("d")
         }
         CommandMenu("Set") {
             Button("Study") { if let id = nav.setID { nav.study(id) } }.keyboardShortcut("l").disabled(nav.setID == nil || nav.sheet != nil)
